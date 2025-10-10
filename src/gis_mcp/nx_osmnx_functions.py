@@ -6,6 +6,7 @@ import math
 import pandas as pd
 import geopandas as gpd
 import networkx as nx
+from numbers import Number
 from typing import List, Optional, Union, Dict, Any, Iterable, Tuple
 from shapely.geometry import LineString, MultiLineString
 from .mcp import gis_mcp
@@ -22,7 +23,8 @@ def get_nx_osmnx_operations() -> Dict[str, List[str]]:
             "nx_manipulate_graph",
             "nx_centrality",
             "nx_shortest_paths",
-            "nx_download_graph"
+            "nx_download_graph",
+            "nx_visualize_graph"
         ]
     }
 
@@ -1196,3 +1198,259 @@ def ox_download_graph(
     except Exception as e:
         return {"status":"error","message":f"Failed to download OSM graph: {str(e)}"}
 
+
+
+
+
+@gis_mcp.tool()
+def nx_visualize_graph(
+    input_path: str,
+    # Outputs
+    output_image_path: Optional[str] = None,     # e.g. "out/graph.png" or ".svg"
+    output_html_path: Optional[str] = None,      # e.g. "out/graph.html"
+    html_engine: str = "pyvis",                  # 'pyvis' | 'folium'
+    # Layout / positions (for image & pyvis)
+    use_node_xy: bool = True,                    # use node attrs ('x','y') or 'pos' if present
+    layout: str = "spring",                      # 'spring'|'kamada_kawai'|'planar'|'circular'|'shell'
+    # Styling (static image)
+    figsize: Tuple[int,int] = (12, 12),
+    dpi: int = 150,
+    bgcolor: str = "white",
+    node_attr_for_size: Optional[str] = None,    # scale node size by this attribute (numeric only)
+    node_size: int = 30,                         # base node size if not scaled
+    node_size_minmax: Tuple[int,int] = (8, 60),
+    node_color: str = "#1f78b4",
+    node_attr_for_color: Optional[str] = None,   # color nodes by categorical attribute
+    edge_attr_for_width: Optional[str] = None,   # scale edge width by attribute (e.g., 'weight','length')
+    edge_width: float = 0.8,
+    edge_width_minmax: Tuple[float,float] = (0.4, 4.0),
+    edge_color: str = "#444444",
+    # Map/OSM-specific (for folium)
+    folium_tiles: str = "cartodbpositron",
+    folium_edge_color: str = "blue",
+    folium_edge_opacity: float = 0.6,
+    # Filtering
+    largest_component: bool = False,
+    as_undirected_for_layout: bool = True
+) -> Dict[str, Any]:
+    """
+    Visualize a saved NetworkX graph to PNG/SVG (matplotlib) or HTML (PyVis/Folium).
+
+    - Uses node positions if available: ('x','y') or 'pos'=(x,y); else computes a layout.
+    - Folium mode is best for OSMnx graphs (needs osmnx installed).
+    - PyVis/Matplotlib show node/edge attributes (PyVis via hover titles).
+    """
+    try:
+        # -------- Load graph --------
+        if not os.path.exists(input_path):
+            return {"status":"error","message":f"Input graph not found: {input_path}"}
+        ext = os.path.splitext(input_path)[1].lower()
+        if ext == ".graphml":
+            G = nx.read_graphml(input_path)
+        elif ext == ".gexf":
+            G = nx.read_gexf(input_path)
+        elif ext in {".gpickle",".pickle"}:
+            G = nx.read_gpickle(input_path)
+        else:
+            return {"status":"error","message":f"Unsupported input format: {ext}"}
+
+        # Keep only largest component (optional)
+        if largest_component:
+            if G.is_directed():
+                comps = list(nx.weakly_connected_components(G))
+            else:
+                comps = list(nx.connected_components(G))
+            if comps:
+                G = G.subgraph(max(comps, key=len)).copy()
+
+        # For layout only, undirected often looks nicer
+        G_for_layout = G.to_undirected() if (as_undirected_for_layout and G.is_directed()) else G
+
+        # -------- Node positions --------
+        pos = None
+        if use_node_xy and len(G) > 0:
+            has_xy = all(("x" in G.nodes[n] and "y" in G.nodes[n]) for n in G.nodes)
+            if has_xy:
+                pos = {n: (float(G.nodes[n]["x"]), float(G.nodes[n]["y"])) for n in G.nodes}
+            elif all(("pos" in G.nodes[n] and isinstance(G.nodes[n]["pos"], (tuple,list)) and len(G.nodes[n]["pos"])==2) for n in G.nodes):
+                pos = {n: (float(G.nodes[n]["pos"][0]), float(G.nodes[n]["pos"][1])) for n in G.nodes}
+        if pos is None:
+            if layout == "spring":
+                pos = nx.spring_layout(G_for_layout, seed=42)
+            elif layout == "kamada_kawai":
+                pos = nx.kamada_kawai_layout(G_for_layout)
+            elif layout == "planar":
+                try:
+                    pos = nx.planar_layout(G_for_layout)
+                except nx.NetworkXException:
+                    pos = nx.spring_layout(G_for_layout, seed=42)
+            elif layout == "circular":
+                pos = nx.circular_layout(G_for_layout)
+            elif layout == "shell":
+                pos = nx.shell_layout(G_for_layout)
+            else:
+                pos = nx.spring_layout(G_for_layout, seed=42)
+
+        # -------- Helpers: numeric handling & scaling --------
+        def _to_float_or_none(x):
+            if isinstance(x, Number):
+                return float(x)
+            try:
+                return float(x)
+            except Exception:
+                return None
+
+        def _scale_map(values_dict, out_min, out_max):
+            numeric = {k: _to_float_or_none(v) for k, v in values_dict.items()}
+            numeric = {k: v for k, v in numeric.items() if v is not None}
+            if not numeric:
+                return {}
+            lo, hi = min(numeric.values()), max(numeric.values())
+            if hi == lo:
+                mid = (out_min + out_max) / 2.0
+                return {k: mid for k in numeric.keys()}
+            rng = hi - lo
+            return {k: out_min + (v - lo) * (out_max - out_min) / rng for k, v in numeric.items()}
+
+        # -------- Node sizes/colors --------
+        if node_attr_for_size:
+            raw = {n: G.nodes[n].get(node_attr_for_size, None) for n in G.nodes}
+            scaled = _scale_map(raw, node_size_minmax[0], node_size_minmax[1])
+            node_sizes = [scaled.get(n, node_size) for n in G.nodes]
+        else:
+            node_sizes = [node_size] * G.number_of_nodes()
+
+        node_colors = None
+        if node_attr_for_color:
+            cats = {}
+            palette = [
+                "#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd",
+                "#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf"
+            ]
+            def cat_color(x):
+                if x not in cats:
+                    cats[x] = palette[len(cats) % len(palette)]
+                return cats[x]
+            node_colors = [cat_color(G.nodes[n].get(node_attr_for_color, None)) for n in G.nodes]
+
+        # -------- Edge list & widths (robust for MultiGraph) --------
+        is_multi = G.is_multigraph()
+        if is_multi:
+            edge_list = list(G.edges(keys=True))  # (u,v,k)
+            if edge_attr_for_width:
+                raw = {(u, v, k): G.edges[u, v, k].get(edge_attr_for_width, None) for (u, v, k) in edge_list}
+                scaled = _scale_map(raw, edge_width_minmax[0], edge_width_minmax[1])
+                edge_widths = [scaled.get((u, v, k), edge_width) for (u, v, k) in edge_list]
+            else:
+                edge_widths = [edge_width] * len(edge_list)
+        else:
+            edge_list = list(G.edges())  # (u,v)
+            if edge_attr_for_width:
+                raw = {(u, v): G.edges[u, v].get(edge_attr_for_width, None) for (u, v) in edge_list}
+                scaled = _scale_map(raw, edge_width_minmax[0], edge_width_minmax[1])
+                edge_widths = [scaled.get((u, v), edge_width) for (u, v) in edge_list]
+            else:
+                edge_widths = [edge_width] * len(edge_list)
+
+        saved: Dict[str, str] = {}
+
+        # -------- Static image (matplotlib) --------
+        if output_image_path:
+            import matplotlib.pyplot as plt
+            plt.figure(figsize=figsize, dpi=dpi)
+            ax = plt.gca()
+            ax.set_facecolor(bgcolor)
+            ax.axis('off')
+            nx.draw_networkx_edges(G, pos, edgelist=edge_list, width=edge_widths, edge_color=edge_color, alpha=0.9, ax=ax)
+            nx.draw_networkx_nodes(
+                G, pos,
+                node_size=node_sizes,
+                node_color=(node_colors if node_colors is not None else node_color),
+                linewidths=0.0, ax=ax
+            )
+            if os.path.dirname(output_image_path):
+                os.makedirs(os.path.dirname(output_image_path), exist_ok=True)
+            plt.tight_layout()
+            plt.savefig(output_image_path, facecolor=bgcolor, bbox_inches="tight")
+            plt.close()
+            saved["image"] = output_image_path
+
+        # -------- Interactive HTML (PyVis or Folium) --------
+        if output_html_path:
+            if os.path.dirname(output_html_path):
+                os.makedirs(os.path.dirname(output_html_path), exist_ok=True)
+
+            if html_engine.lower() == "folium":
+                # Best for OSMnx graphs
+                try:
+                    import osmnx as ox
+                except ImportError:
+                    return {"status":"error","message":"html_engine='folium' requires osmnx installed."}
+                try:
+                    m = ox.plot_graph_folium(
+                        G, tiles=folium_tiles,
+                        color=folium_edge_color, opacity=folium_edge_opacity, weight=3
+                    )
+                    m.save(output_html_path)
+                    saved["html"] = output_html_path
+                except Exception as e:
+                    return {"status":"error","message":f"Failed to export folium HTML: {e}"}
+            else:
+                # PyVis (write file instead of .show() to avoid headless issues)
+                try:
+                    from pyvis.network import Network
+                except ImportError:
+                    return {"status":"error","message":"html_engine='pyvis' requires 'pyvis' (pip install pyvis)."}
+
+                net = Network(height="800px", width="100%", directed=G.is_directed(),
+                              bgcolor=bgcolor, font_color="#333", notebook=False)
+                net.barnes_hut()
+
+                # nodes
+                nodes_list = list(G.nodes)
+                for idx, (n, attrs) in enumerate(G.nodes(data=True)):
+                    title = "<br>".join([f"{k}: {v}" for k, v in attrs.items()])
+                    size_val = node_sizes[idx]
+                    color_val = (node_colors[idx] if node_colors is not None else node_color)
+                    if n in pos:
+                        x_val, y_val = pos[n]
+                        x_val = _to_float_or_none(x_val); y_val = _to_float_or_none(y_val)
+                        if x_val is not None and y_val is not None:
+                            net.add_node(n, label=str(n), title=title, x=x_val, y=-y_val,
+                                         physics=False, size=float(size_val), color=color_val)
+                            continue
+                    net.add_node(n, label=str(n), title=title, size=float(size_val), color=color_val)
+
+                # edges
+                if is_multi:
+                    for (u, v, k), w in zip(edge_list, edge_widths):
+                        d = G.get_edge_data(u, v, k) or {}
+                        title = "<br>".join([f"{kk}: {vv}" for kk, vv in d.items()])
+                        net.add_edge(u, v, title=title, value=float(w))
+                else:
+                    for (u, v), w in zip(edge_list, edge_widths):
+                        d = G.get_edge_data(u, v) or {}
+                        title = "<br>".join([f"{kk}: {vv}" for kk, vv in d.items()])
+                        net.add_edge(u, v, title=title, value=float(w))
+
+                # robust HTML write
+                if hasattr(net, "write_html"):
+                    net.write_html(output_html_path, notebook=False, local=False)  # use CDN
+                else:
+                    net.save_graph(output_html_path)
+                saved["html"] = output_html_path
+
+        # -------- Summary --------
+        return {
+            "status":"success",
+            "message":"Graph visualized successfully",
+            "result":{
+                "n_nodes": int(G.number_of_nodes()),
+                "n_edges": int(G.number_of_edges()),
+                "is_directed": bool(G.is_directed()),
+                "saved": saved
+            }
+        }
+
+    except Exception as e:
+        return {"status":"error","message":f"Failed to visualize graph: {str(e)}"}
