@@ -301,3 +301,298 @@ def nx_create_graph(
 
     except Exception as e:
         return {"status": "error", "message": f"Failed to create graph: {str(e)}"}
+
+
+
+import os, json
+import networkx as nx
+from typing import Any, Dict, List, Optional, Union
+
+def nx_manipulate_graph(
+    input_path: str,
+    operations: List[Dict[str, Any]],   # ordered list of ops (see below)
+    output_path: Optional[str] = None,  # if provided, graph is saved
+    output_format: Optional[str] = None # 'graphml'|'gexf'|'gpickle'
+) -> Dict[str, Any]:
+    """
+    Manipulate a NetworkX graph by applying a sequence of operations.
+
+    Supported operations (op field):
+      - 'add_nodes': {'nodes': [id|{id, attrs}], 'default_attrs': {...}?}
+      - 'add_edges': {'edges': [(u,v)|{u,v,attrs}], 'default_attrs': {...}?}
+      - 'remove_nodes': {'nodes': [ids]}
+      - 'remove_edges': {'edges': [(u,v)|(u,v,key)]}
+      - 'set_node_attrs': {'attrs': {node: {k:v,...}, ...}}
+      - 'set_edge_attrs': {'attrs': [{u,v,attrs}|{u,v,key,attrs}, ...]}
+      - 'relabel_nodes': {'mapping': {old:new}, 'copy': False}
+      - 'induced_subgraph': {'nodes': [ids]}
+      - 'filter_nodes': {'keep_if': {'attr': 'degree|attribute', 'op': '>=', 'value': X}}
+      - 'largest_component': {'strong': False}  # for DiGraph, strong vs weak
+      - 'to_undirected': {}
+      - 'to_directed': {}
+      - 'reverse': {'copy': True}
+      - 'simplify_multigraph': {'aggregate': {'weight': 'sum'|'mean'|'max'|...}}
+      - 'contract_nodes': {'mapping': {node: group_id}, 'aggregate': {'weight':'sum', ...}}
+    """
+    try:
+        if not os.path.exists(input_path):
+            return {"status": "error", "message": f"Input graph not found: {input_path}"}
+
+        # ---- load ----
+        ext = os.path.splitext(input_path)[1].lower()
+        if ext == ".graphml":
+            G = nx.read_graphml(input_path)
+        elif ext == ".gexf":
+            G = nx.read_gexf(input_path)
+        elif ext in {".gpickle", ".pickle"}:
+            G = nx.read_gpickle(input_path)
+        else:
+            return {"status": "error", "message": f"Unsupported input format: {ext}"}
+
+        def _is_multi(G): return G.is_multigraph()
+
+        # ---- helpers ----
+        def _apply_add_nodes(op):
+            nodes = op.get("nodes", [])
+            default = op.get("default_attrs", {}) or {}
+            for item in nodes:
+                if isinstance(item, dict) and "id" in item:
+                    nid = item["id"]; attrs = {**default, **{k:v for k,v in item.items() if k!='id'}}
+                else:
+                    nid = item; attrs = dict(default)
+                G.add_node(nid, **attrs)
+
+        def _apply_add_edges(op):
+            edges = op.get("edges", [])
+            default = op.get("default_attrs", {}) or {}
+            for item in edges:
+                if isinstance(item, dict):
+                    u = item["u"]; v = item["v"]
+                    attrs = {**default, **{k:v for k,v in item.items() if k not in ("u","v","key")}}
+                    if _is_multi(G) and "key" in item:
+                        G.add_edge(u, v, key=item["key"], **attrs)
+                    else:
+                        G.add_edge(u, v, **attrs)
+                else:
+                    # tuple (u,v) or (u,v,key)
+                    if _is_multi(G) and isinstance(item, (tuple, list)) and len(item)==3:
+                        u,v,k = item; G.add_edge(u,v,key=k, **default)
+                    else:
+                        u,v = item; G.add_edge(u,v, **default)
+
+        def _apply_remove_nodes(op):
+            for n in op.get("nodes", []):
+                if G.has_node(n): G.remove_node(n)
+
+        def _apply_remove_edges(op):
+            for e in op.get("edges", []):
+                if _is_multi(G) and isinstance(e, (tuple,list)) and len(e)==3:
+                    u,v,k = e
+                    if G.has_edge(u,v,k): G.remove_edge(u,v,k)
+                else:
+                    u,v = e
+                    if G.has_edge(u,v): G.remove_edge(u,v)
+
+        def _apply_set_node_attrs(op):
+            for n, attrs in (op.get("attrs") or {}).items():
+                if G.has_node(n): G.nodes[n].update(attrs)
+
+        def _apply_set_edge_attrs(op):
+            for rec in (op.get("attrs") or []):
+                u = rec.get("u"); v = rec.get("v"); attrs = rec.get("attrs", {})
+                if _is_multi(G) and "key" in rec:
+                    k = rec["key"]
+                    if G.has_edge(u,v,k): G.edges[u,v,k].update(attrs)
+                else:
+                    if G.has_edge(u,v): G.edges[u,v].update(attrs)
+
+        def _apply_relabel(op):
+            nonlocal G
+            mapping = op.get("mapping", {})
+            copy = bool(op.get("copy", False))
+            G = nx.relabel_nodes(G, mapping, copy=copy)
+
+        def _apply_induced(op):
+            nonlocal G
+            nodes = [n for n in op.get("nodes", []) if G.has_node(n)]
+            nonlocal G
+            G = G.subgraph(nodes).copy()
+
+        def _apply_filter_nodes(op):
+            nonlocal G
+            rule = op.get("keep_if", {})
+            attr = rule.get("attr")
+            oper = rule.get("op", "==")
+            val  = rule.get("value")
+            keep=set()
+            if attr == "degree":
+                deg = dict(G.degree())
+                for n,d in deg.items():
+                    if eval(f"d {oper} {val}"): keep.add(n)
+            else:
+                for n,data in G.nodes(data=True):
+                    x = data.get(attr, None)
+                    try:
+                        if eval(f"x {oper} {repr(val)}"): keep.add(n)
+                    except Exception:
+                        pass
+            G = G.subgraph(keep).copy()
+
+        def _apply_largest_component(op):
+            nonlocal G
+            strong = bool(op.get("strong", False))
+            nonlocal G
+            if G.is_directed():
+                comps = list(nx.strongly_connected_components(G)) if strong else list(nx.weakly_connected_components(G))
+            else:
+                comps = list(nx.connected_components(G))
+            if comps:
+                biggest = max(comps, key=len)
+                G = G.subgraph(biggest).copy()
+
+        def _apply_to_undirected(_): 
+            nonlocal G
+            nonlocal G; G = G.to_undirected().copy()
+
+        def _apply_to_directed(_): 
+            nonlocal G
+            nonlocal G; G = G.to_directed().copy()
+
+        def _apply_reverse(op):
+            nonlocal G
+            copy = bool(op.get("copy", True))
+            nonlocal G; G = G.reverse(copy=copy)
+
+        def _aggregate(values, how):
+            nonlocal G
+            import statistics
+            if how == "sum": return sum(values)
+            if how == "mean": return statistics.fmean(values) if values else 0.0
+            if how == "max": return max(values)
+            if how == "min": return min(values)
+            if how == "first": return values[0]
+            if how == "last": return values[-1]
+            return values[-1]  # default
+
+        def _apply_simplify_multigraph(op):
+            nonlocal G
+            if not _is_multi(G): return
+            agg = op.get("aggregate", {})  # {'weight':'sum', 'capacity':'max', ...}
+            H = nx.DiGraph() if G.is_directed() else nx.Graph()
+            H.add_nodes_from(G.nodes(data=True))
+            for u,v,data in G.edges(data=True):
+                key = (u,v) if not G.is_directed() else (u,v)
+                if H.has_edge(u,v):
+                    # merge attributes
+                    for a, how in agg.items():
+                        vals = H.edges[u,v].get(a, [])
+                        if not isinstance(vals, list): vals = [vals]
+                        vals.append(data.get(a))
+                        H.edges[u,v][a] = _aggregate([x for x in vals if x is not None], how)
+                else:
+                    H.add_edge(u,v, **{a: data.get(a) for a in set(agg.keys()).union(data.keys())})
+                    # initialize aggregated fields
+                    for a, how in agg.items():
+                        val = data.get(a)
+                        H.edges[u,v][a] = val
+            G = H
+
+        def _apply_contract_nodes(op):
+            nonlocal G
+            mapping = op.get("mapping", {})  # {node: group_id}
+            agg = op.get("aggregate", {})    # edge attr aggregation rules
+            # contract by mapping, then simplify multiedges by agg
+            nonlocal G
+            H = nx.contracted_nodes if False else None  # placeholder (we'll use relabel + merge)
+            # Relabel nodes to group ids
+            G = nx.relabel_nodes(G, mapping, copy=False)
+            # After relabel, parallel edges can exist → convert to Multi, then simplify
+            G = nx.MultiDiGraph(G) if G.is_directed() else nx.MultiGraph(G)
+            _apply_simplify_multigraph({"aggregate": agg})
+
+        # ---- dispatch table ----
+        handlers = {
+            "add_nodes": _apply_add_nodes,
+            "add_edges": _apply_add_edges,
+            "remove_nodes": _apply_remove_nodes,
+            "remove_edges": _apply_remove_edges,
+            "set_node_attrs": _apply_set_node_attrs,
+            "set_edge_attrs": _apply_set_edge_attrs,
+            "relabel_nodes": _apply_relabel,
+            "induced_subgraph": _apply_induced,
+            "filter_nodes": _apply_filter_nodes,
+            "largest_component": _apply_largest_component,
+            "to_undirected": _apply_to_undirected,
+            "to_directed": _apply_to_directed,
+            "reverse": _apply_reverse,
+            "simplify_multigraph": _apply_simplify_multigraph,
+            "contract_nodes": _apply_contract_nodes,
+        }
+
+        # ---- apply operations ----
+        for op in (operations or []):
+            kind = op.get("op")
+            fn = handlers.get(kind)
+            if not fn:
+                return {"status":"error","message":f"Unknown operation: {kind}"}
+            fn(op)
+
+        # ---- summary & previews ----
+        n_nodes = G.number_of_nodes()
+        n_edges = G.number_of_edges()
+        density = float(nx.density(G)) if n_nodes else 0.0
+        degs = dict(G.degree())
+        avg_deg = float(sum(degs.values())/n_nodes) if n_nodes else 0.0
+        isolates = list(nx.isolates(G))
+        is_dir = G.is_directed()
+
+        if is_dir:
+            wcc = [len(c) for c in nx.weakly_connected_components(G)]
+            comps = {"weak_components": {"count": len(wcc), "largest": max(wcc) if wcc else 0}}
+        else:
+            cc = [len(c) for c in nx.connected_components(G)] if n_nodes else []
+            comps = {"components": {"count": len(cc), "largest": max(cc) if cc else 0}}
+
+        edge_preview = []
+        if _is_multi(G):
+            for u,v,k,d in list(G.edges(keys=True, data=True))[:5]:
+                row = {"u":u,"v":v,"key":k}; row.update(d); edge_preview.append(row)
+        else:
+            for u,v,d in list(G.edges(data=True))[:5]:
+                row = {"u":u,"v":v}; row.update(d); edge_preview.append(row)
+
+        node_preview = []
+        for n,d in list(G.nodes(data=True))[:5]:
+            row = {"id":n,"degree":degs.get(n,0)}; row.update(d); node_preview.append(row)
+
+        # ---- save (optional) ----
+        saved_to = None
+        if output_path and output_format:
+            fmt = (output_format or "").lower()
+            if fmt == "graphml":
+                nx.write_graphml(G, output_path)
+            elif fmt == "gexf":
+                nx.write_gexf(G, output_path)
+            elif fmt == "gpickle":
+                nx.write_gpickle(G, output_path)
+            else:
+                return {"status":"error","message":f"Unknown output_format: {output_format}"}
+            saved_to = output_path
+
+        result = {
+            "n_nodes": int(n_nodes),
+            "n_edges": int(n_edges),
+            "is_directed": bool(is_dir),
+            "density": density,
+            "avg_degree": avg_deg,
+            "isolates_count": int(len(isolates)),
+            "components": comps,
+            "node_preview": node_preview,
+            "edge_preview": edge_preview,
+            "saved_to": saved_to
+        }
+        return {"status":"success","message":"Graph manipulated successfully","result":result}
+
+    except Exception as e:
+        return {"status":"error","message":f"Failed to manipulate graph: {str(e)}"}
+
