@@ -1,6 +1,7 @@
 import os
 import logging
 import json
+import csv
 import math
 import pandas as pd
 import geopandas as gpd
@@ -17,7 +18,9 @@ def get_nx_osmnx_operations() -> Dict[str, List[str]]:
     """List available rasterio operations."""
     return {
         "operations": [
-            "nx_create_graph"
+            "nx_create_graph",
+            "nx_manipulate_graph",
+            "nx_centrality"
         ]
     }
 
@@ -303,11 +306,7 @@ def nx_create_graph(
         return {"status": "error", "message": f"Failed to create graph: {str(e)}"}
 
 
-
-import os, json
-import networkx as nx
-from typing import Any, Dict, List, Optional, Union
-
+@gis_mcp.tool()
 def nx_manipulate_graph(
     input_path: str,
     operations: List[Dict[str, Any]],   # ordered list of ops (see below)
@@ -595,4 +594,193 @@ def nx_manipulate_graph(
 
     except Exception as e:
         return {"status":"error","message":f"Failed to manipulate graph: {str(e)}"}
+
+
+
+@gis_mcp.tool()
+def nx_centrality(
+    input_path: str,
+    measures: List[str] = None,           # e.g. ["degree","strength","betweenness","closeness","eigenvector","pagerank","katz","harmonic","hits"]
+    weight_attr: Optional[str] = None,    # edge attribute for weights (used by most measures); for closeness it's treated as 'distance'
+    as_undirected: bool = False,          # compute on an undirected copy
+    largest_component: bool = False,      # restrict to largest (weak for DiGraph, connected for Graph)
+    endpoints: bool = False,              # betweenness option
+    normalized: bool = True,              # betweenness normalization
+    alpha_pr: float = 0.85,               # PageRank damping
+    katz_alpha: float = 0.1,              # Katz attenuation (must be < 1/lambda_max)
+    katz_beta: float = 1.0,               # Katz exogenous factor
+    max_iter: int = 1000,
+    tol: float = 1e-06,
+    restrict_to_nodes: Optional[List[Any]] = None,  # compute/report only for these nodes (if provided)
+    top_k: int = 20,                      # return top-k per metric (set None to return all)
+    save_csv_path: Optional[str] = None   # if provided, writes a CSV merging all requested metrics
+) -> Dict[str, Any]:
+    """
+    Compute centrality metrics on a NetworkX graph loaded from disk.
+
+    Notes:
+      - 'strength' = weighted degree (sum of weights). If weight_attr is None, each edge counts as 1.
+      - For closeness/harmonic, 'weight_attr' is treated as a distance/cost (smaller is closer).
+      - HITS only runs for DiGraph; returns 'hubs' and 'authorities'.
+      - If 'as_undirected=True', metrics are computed on G.to_undirected().
+    """
+    try:
+        if measures is None:
+            measures = ["degree", "strength", "betweenness", "closeness", "eigenvector", "pagerank"]
+
+        if not os.path.exists(input_path):
+            return {"status": "error", "message": f"Input graph not found: {input_path}"}
+
+        # ---- load graph ----
+        ext = os.path.splitext(input_path)[1].lower()
+        if ext == ".graphml":
+            G = nx.read_graphml(input_path)
+        elif ext == ".gexf":
+            G = nx.read_gexf(input_path)
+        elif ext in {".gpickle", ".pickle"}:
+            G = nx.read_gpickle(input_path)
+        else:
+            return {"status": "error", "message": f"Unsupported input format: {ext}"}
+
+        # Optionally convert to undirected for analysis
+        if as_undirected:
+            G = G.to_undirected()
+
+        # Restrict to largest component if requested
+        if largest_component:
+            if G.is_directed():
+                comps = list(nx.weakly_connected_components(G))
+            else:
+                comps = list(nx.connected_components(G))
+            if comps:
+                G = G.subgraph(max(comps, key=len)).copy()
+
+        # If restricting to specific nodes, induce a subgraph containing only them (if present)
+        if restrict_to_nodes:
+            keep = [n for n in restrict_to_nodes if n in G]
+            if not keep:
+                return {"status":"error","message":"None of the restrict_to_nodes are in the graph."}
+            G = G.subgraph(keep).copy()
+
+        n = G.number_of_nodes()
+        if n == 0:
+            return {"status":"error","message":"Graph has no nodes after requested filters."}
+
+        # ---- compute metrics ----
+        out: Dict[str, Any] = {"n_nodes": n, "n_edges": G.number_of_edges(), "is_directed": G.is_directed()}
+        results: Dict[str, Dict[Any, float]] = {}
+
+        def _topk(d: Dict[Any, float]):
+            items = sorted(d.items(), key=lambda kv: (kv[1], str(kv[0])), reverse=True)
+            if top_k is None:
+                return [{"node": k, "value": float(v)} for k, v in items]
+            return [{"node": k, "value": float(v)} for k, v in items[:top_k]]
+
+        # Degree centrality (unweighted) — scaled by (n-1) in NetworkX
+        if "degree" in measures:
+            results["degree"] = nx.degree_centrality(G)
+
+        # Strength (weighted degree) — sum of weights (or 1 if no weight_attr)
+        if "strength" in measures:
+            # MultiGraphs sum over parallel edges too
+            results["strength"] = dict(G.degree(weight=weight_attr))
+
+        # Betweenness
+        if "betweenness" in measures:
+            results["betweenness"] = nx.betweenness_centrality(
+                G, weight=weight_attr, normalized=normalized, endpoints=endpoints
+            )
+
+        # Closeness (distance = weight_attr). If weight_attr is None -> unweighted shortest paths
+        if "closeness" in measures:
+            results["closeness"] = nx.closeness_centrality(G, distance=weight_attr)
+
+        # Harmonic centrality (more stable on disconnected graphs)
+        if "harmonic" in measures and hasattr(nx, "harmonic_centrality"):
+            results["harmonic"] = nx.harmonic_centrality(G, distance=weight_attr)
+
+        # Eigenvector centrality
+        if "eigenvector" in measures:
+            try:
+                results["eigenvector"] = nx.eigenvector_centrality(
+                    G, max_iter=max_iter, tol=tol, weight=weight_attr
+                )
+            except nx.PowerIterationFailedConvergence:
+                results["eigenvector"] = {}  # signal failure gracefully
+                out.setdefault("warnings", []).append("Eigenvector centrality did not converge; try increasing max_iter.")
+
+        # PageRank
+        if "pagerank" in measures:
+            results["pagerank"] = nx.pagerank(G, alpha=alpha_pr, max_iter=max_iter, tol=tol, weight=weight_attr)
+
+        # Katz centrality
+        if "katz" in measures:
+            try:
+                results["katz"] = nx.katz_centrality(
+                    G, alpha=katz_alpha, beta=katz_beta, max_iter=max_iter, tol=tol, weight=weight_attr, normalized=True
+                )
+            except nx.PowerIterationFailedConvergence:
+                results["katz"] = {}
+                out.setdefault("warnings", []).append("Katz centrality did not converge; lower katz_alpha or increase max_iter.")
+
+        # HITS (only meaningful for DiGraph)
+        if "hits" in measures:
+            if not G.is_directed():
+                out.setdefault("warnings", []).append("HITS requested but graph is undirected; skipping.")
+            else:
+                try:
+                    hubs, auth = nx.hits(G, max_iter=max_iter, tol=tol, normalized=True)
+                    # flatten into two separate measures
+                    results["hits_hubs"] = hubs
+                    results["hits_authorities"] = auth
+                except nx.PowerIterationFailedConvergence:
+                    results["hits_hubs"] = {}
+                    results["hits_authorities"] = {}
+                    out.setdefault("warnings", []).append("HITS did not converge; increase max_iter or check graph structure.")
+
+        # ---- assemble output (top-k lists) ----
+        topk_out = {name: _topk(vals) for name, vals in results.items() if isinstance(vals, dict) and vals}
+
+        out.update({
+            "measures_computed": list(topk_out.keys()),
+            "top_k": int(top_k) if top_k is not None else None,
+            "results_topk": topk_out
+        })
+
+        # ---- optional CSV save (merge all measures) ----
+        if save_csv_path:
+            # collect union of nodes and write long-wide table
+            all_nodes = set()
+            for vals in results.values():
+                if isinstance(vals, dict):
+                    all_nodes.update(vals.keys())
+            rows = []
+            for n_id in all_nodes:
+                row = {"node": n_id}
+                for m in results.keys():
+                    v = results[m].get(n_id, None) if isinstance(results[m], dict) else None
+                    row[m] = v
+                rows.append(row)
+            # write CSV
+            try:
+                import pandas as pd
+                pd.DataFrame(rows).to_csv(save_csv_path, index=False)
+                out["saved_csv"] = save_csv_path
+            except Exception as e:
+                # fallback manual CSV
+                try:
+                    fieldnames = ["node"] + list(results.keys())
+                    with open(save_csv_path, "w", newline="", encoding="utf-8") as f:
+                        w = csv.DictWriter(f, fieldnames=fieldnames)
+                        w.writeheader()
+                        for r in rows:
+                            w.writerow(r)
+                    out["saved_csv"] = save_csv_path
+                except Exception as ee:
+                    out.setdefault("warnings", []).append(f"Failed to save CSV: {ee}")
+
+        return {"status": "success", "message": "Centrality computed successfully", "result": out}
+
+    except Exception as e:
+        return {"status": "error", "message": f"Failed to compute centrality: {str(e)}"}
 
