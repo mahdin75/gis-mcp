@@ -6,9 +6,10 @@ import math
 import pandas as pd
 import geopandas as gpd
 import networkx as nx
-from typing import List, Optional, Union, Dict, Any
+from typing import List, Optional, Union, Dict, Any, Iterable, Tuple
 from shapely.geometry import LineString, MultiLineString
 from .mcp import gis_mcp
+
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -20,7 +21,8 @@ def get_nx_osmnx_operations() -> Dict[str, List[str]]:
         "operations": [
             "nx_create_graph",
             "nx_manipulate_graph",
-            "nx_centrality"
+            "nx_centrality",
+            "nx_shortest_paths"
         ]
     }
 
@@ -783,4 +785,221 @@ def nx_centrality(
 
     except Exception as e:
         return {"status": "error", "message": f"Failed to compute centrality: {str(e)}"}
+
+
+
+@gis_mcp.tool()
+def nx_shortest_paths(
+    input_path: str,
+    # who/what to compute
+    sources: Union[Any, List[Any]],                 # a node or list of nodes
+    targets: Optional[Union[Any, List[Any]]] = None,# None => from sources to ALL other nodes
+    mode: str = "single",                           # 'single' | 'multi' | 'all_pairs' | 'ksp'
+    k: int = 3,                                     # for mode='ksp'
+    # graph treatment
+    weight_attr: Optional[str] = None,              # edge weight (None => unweighted)
+    as_undirected: bool = False,                    # compute on undirected copy
+    largest_component: bool = False,                # restrict to largest (weak for DiGraph)
+    # algorithm & knobs
+    method: str = "dijkstra",                       # 'dijkstra' | 'bellman-ford' | 'astar'
+    cutoff: Optional[float] = None,                 # max path length (Dijkstra/BF)
+    astar_pos_attrs: Tuple[str,str] = ("x","y"),    # node attrs to read for A* (or a 'pos' tuple attr)
+    astar_pos_attr_name: Optional[str] = None,      # if you store positions as a single 'pos'=(x,y)
+    # output controls
+    return_edge_attrs: Optional[List[str]] = None,  # include these edge attrs per path step
+    max_results_per_pair: Optional[int] = None      # hard cap per (source,target) in 'ksp'
+) -> Dict[str, Any]:
+    """
+    Compute shortest (or K-shortest) paths on a saved NetworkX graph.
+
+    modes:
+      - 'single': one source, one target (targets must be a single node)
+      - 'multi' : many sources and/or many targets (cartesian product)
+      - 'all_pairs': ignore sources/targets and compute for all node pairs (heavy)
+      - 'ksp'   : K-shortest simple paths (Yen; uses edge weights if given)
+
+    method:
+      - 'dijkstra' (default): supports weight_attr & cutoff
+      - 'bellman-ford': allows negative weights (no negative cycles)
+      - 'astar': needs node coordinates; uses Euclidean heuristic
+    """
+    try:
+        # ---- load graph ----
+        if not os.path.exists(input_path):
+            return {"status":"error","message":f"Input graph not found: {input_path}"}
+        ext = os.path.splitext(input_path)[1].lower()
+        if ext == ".graphml":
+            G = nx.read_graphml(input_path)
+        elif ext == ".gexf":
+            G = nx.read_gexf(input_path)
+        elif ext in {".gpickle",".pickle"}:
+            G = nx.read_gpickle(input_path)
+        else:
+            return {"status":"error","message":f"Unsupported input format: {ext}"}
+
+        if as_undirected:
+            G = G.to_undirected()
+
+        # restrict to largest component if requested
+        if largest_component:
+            comps = (nx.weakly_connected_components(G) if G.is_directed() else nx.connected_components(G))
+            comps = list(comps)
+            if comps:
+                G = G.subgraph(max(comps, key=len)).copy()
+
+        # normalize sources/targets lists
+        if isinstance(sources, (list, tuple, set)):
+            src_list = list(sources)
+        else:
+            src_list = [sources]
+
+        if targets is None:
+            tgt_list = None  # means: all nodes (except src in 'single' if needed)
+        else:
+            if isinstance(targets, (list, tuple, set)):
+                tgt_list = list(targets)
+            else:
+                tgt_list = [targets]
+
+        # node existence check
+        missing = [n for n in src_list if n not in G]
+        if tgt_list is not None:
+            missing += [n for n in tgt_list if n not in G]
+        if missing:
+            return {"status":"error","message":f"Unknown node(s): {sorted(set(missing))}"}
+
+        # A* heuristic
+        def _euclid(u, v):
+            # try 'pos' attr first (tuple), else separate x,y attrs
+            def get_xy(n):
+                if astar_pos_attr_name and astar_pos_attr_name in G.nodes[n]:
+                    p = G.nodes[n][astar_pos_attr_name]
+                    if isinstance(p, (tuple, list)) and len(p)==2:
+                        return float(p[0]), float(p[1])
+                xk, yk = astar_pos_attrs
+                if xk in G.nodes[n] and yk in G.nodes[n]:
+                    return float(G.nodes[n][xk]), float(G.nodes[n][yk])
+                raise KeyError("coords missing")
+            try:
+                x1,y1 = get_xy(u); x2,y2 = get_xy(v)
+                return math.hypot(x1-x2, y1-y2)
+            except Exception:
+                # fallback: heuristic=0 (degrades to Dijkstra)
+                return 0.0
+
+        # helpers to compute one shortest path
+        def _one_path(s, t):
+            if method == "bellman-ford":
+                length, path = nx.single_source_bellman_ford(G, s, target=t, weight=weight_attr)
+            elif method == "astar":
+                path = nx.astar_path(G, s, t, heuristic=_euclid, weight=weight_attr)
+                length = nx.path_weight(G, path, weight=weight_attr) if weight_attr else len(path)-1
+            else:  # dijkstra
+                length, path = nx.single_source_dijkstra(G, s, target=t, weight=weight_attr, cutoff=cutoff)
+            return float(length), list(path)
+
+        # decorate a path with edge attributes if requested
+        def _decorate(path):
+            if not return_edge_attrs:
+                return {"nodes": path}
+            steps = []
+            for u, v in zip(path[:-1], path[1:]):
+                data = G.get_edge_data(u, v)
+                # for multigraphs, pick the first edge's attrs
+                if isinstance(data, dict) and any(isinstance(k, (int,str)) for k in data.keys()) and "weight" not in data:
+                    # MultiGraph edge dict: {key: {attrs}}
+                    data = next(iter(data.values()))
+                step = {"u": u, "v": v}
+                for a in return_edge_attrs:
+                    step[a] = data.get(a) if isinstance(data, dict) else None
+                steps.append(step)
+            return {"nodes": path, "edges": steps}
+
+        results: Dict[str, Any] = {}
+
+        # ---- modes ----
+        if mode == "single":
+            if tgt_list is None or len(tgt_list) != 1 or len(src_list) != 1:
+                return {"status":"error","message":"For mode='single', provide exactly one source and one target."}
+            s, t = src_list[0], tgt_list[0]
+            try:
+                length, path = _one_path(s, t)
+                results[f"{s}->{t}"] = {"length": length, "path": _decorate(path)}
+            except nx.NetworkXNoPath:
+                results[f"{s}->{t}"] = {"length": float("inf"), "path": None}
+
+        elif mode == "multi":
+            # all pairs from sources × targets (or × all nodes if targets=None)
+            pairs: Iterable[Tuple[Any,Any]]
+            if tgt_list is None:
+                all_nodes = list(G.nodes())
+                pairs = [(s, t) for s in src_list for t in all_nodes if t != s]
+            else:
+                pairs = [(s, t) for s in src_list for t in tgt_list if t != s]
+            for s, t in pairs:
+                try:
+                    length, path = _one_path(s, t)
+                    results[f"{s}->{t}"] = {"length": length, "path": _decorate(path)}
+                except nx.NetworkXNoPath:
+                    results[f"{s}->{t}"] = {"length": float("inf"), "path": None}
+
+        elif mode == "all_pairs":
+            # heavy; ignore provided sources/targets
+            # choose algorithm by method
+            if method == "bellman-ford":
+                all_lengths = dict(nx.all_pairs_bellman_ford_path_length(G, weight=weight_attr))
+                all_paths   = dict(nx.all_pairs_bellman_ford_path(G, weight=weight_attr))
+            else:  # dijkstra default
+                all_lengths = dict(nx.all_pairs_dijkstra_path_length(G, weight=weight_attr))
+                all_paths   = dict(nx.all_pairs_dijkstra_path(G, weight=weight_attr))
+            for s, ld in all_lengths.items():
+                for t, L in ld.items():
+                    if s == t: 
+                        continue
+                    path = all_paths.get(s, {}).get(t, None)
+                    results.setdefault(str(s), {})[str(t)] = {
+                        "length": float(L),
+                        "path": _decorate(path) if path else None
+                    }
+
+        elif mode == "ksp":
+            # K-shortest simple paths via Yen (networkx.shortest_simple_paths)
+            if tgt_list is None or len(tgt_list) == 0:
+                return {"status":"error","message":"For mode='ksp', provide at least one target."}
+            max_per_pair = max_results_per_pair or k
+            for s in src_list:
+                for t in tgt_list:
+                    if s == t: 
+                        continue
+                    try:
+                        gen = nx.shortest_simple_paths(G, s, t, weight=weight_attr)
+                        paths = []
+                        for i, path in enumerate(gen):
+                            if i >= k: break
+                            L = nx.path_weight(G, path, weight=weight_attr) if weight_attr else (len(path)-1)
+                            paths.append({"rank": i+1, "length": float(L), "path": _decorate(path)})
+                            if max_per_pair and len(paths) >= max_per_pair:
+                                break
+                        results[f"{s}->{t}"] = paths
+                    except nx.NetworkXNoPath:
+                        results[f"{s}->{t}"] = []
+        else:
+            return {"status":"error","message":f"Unknown mode: {mode}"}
+
+        summary = {
+            "n_nodes": int(G.number_of_nodes()),
+            "n_edges": int(G.number_of_edges()),
+            "is_directed": bool(G.is_directed()),
+            "mode": mode,
+            "method": method,
+            "weight_attr": weight_attr,
+        }
+        if mode == "ksp":
+            summary.update({"k": int(k)})
+
+        return {"status":"success","message":"Paths computed successfully","result":{"summary":summary,"paths":results}}
+
+    except Exception as e:
+        return {"status":"error","message":f"Failed to compute paths: {str(e)}"}
+
 
