@@ -10,7 +10,6 @@ from typing import List, Optional, Union, Dict, Any, Iterable, Tuple
 from shapely.geometry import LineString, MultiLineString
 from .mcp import gis_mcp
 
-
 # Configure logging
 logger = logging.getLogger(__name__)
 
@@ -22,7 +21,8 @@ def get_nx_osmnx_operations() -> Dict[str, List[str]]:
             "nx_create_graph",
             "nx_manipulate_graph",
             "nx_centrality",
-            "nx_shortest_paths"
+            "nx_shortest_paths",
+            "nx_download_graph"
         ]
     }
 
@@ -1002,4 +1002,197 @@ def nx_shortest_paths(
     except Exception as e:
         return {"status":"error","message":f"Failed to compute paths: {str(e)}"}
 
+
+
+
+@gis_mcp.tool()
+def ox_download_graph(
+    # --- area of interest (provide exactly ONE of these) ---
+    place: Optional[Union[str, List[str]]] = None,             # e.g. "Tehran, Iran" or ["Toronto, Ontario, Canada"]
+    bbox: Optional[Tuple[float, float, float, float]] = None,  # (north, south, east, west) in lat/lon
+    polygon_path: Optional[str] = None,                        # path to polygon file (shp/gpkg/geojson); first feature used
+    point: Optional[Tuple[float, float]] = None,               # (lat, lon)
+    dist: Optional[float] = None,                              # meters (used with point)
+    # --- graph build options ---
+    network_type: str = "drive",                               # 'drive','walk','bike','all','all_private'
+    custom_filter: Optional[str] = None,                       # Overpass filter, e.g. '["highway"~"motorway|trunk"]'
+    simplify: bool = True,
+    retain_all: bool = False,
+    truncate_by_edge: bool = True,                              # replaces old 'clean_periphery'
+    to_undirected: bool = False,
+    # --- enrichment ---
+    add_speeds: bool = True,                                   # osmnx.add_edge_speeds()
+    add_travel_time: bool = True,                              # osmnx.add_edge_travel_times()
+    project_to_utm: bool = True,                               # project_graph to local UTM
+    # --- saving ---
+    save_graphml_path: Optional[str] = None,                   # e.g. "out/tehran_drive.graphml"
+    save_gpkg_path: Optional[str] = None,                      # e.g. "out/tehran_drive.gpkg" (nodes+edges layers)
+    # --- osmnx settings ---
+    use_cache: bool = True,
+    timeout: int = 180,
+    log_console: bool = False
+) -> Dict[str, Any]:
+    """
+    Download an OpenStreetMap network with OSMnx.
+
+    Area of interest: pass exactly ONE of (place | bbox | polygon_path | (point & dist)).
+
+    Returns a JSON summary with stats and tiny previews. Saves GraphML/GeoPackage if paths provided.
+    """
+    try:
+        import osmnx as ox
+        from shapely.geometry import Polygon, MultiPolygon
+
+        # OSMnx settings
+        ox.settings.use_cache = bool(use_cache)
+        ox.settings.log_console = bool(log_console)
+        ox.settings.timeout = int(timeout)
+
+        # Validate AOI selection
+        aoi_count = sum([
+            1 if place is not None else 0,
+            1 if bbox is not None else 0,
+            1 if polygon_path is not None else 0,
+            1 if (point is not None and dist is not None) else 0
+        ])
+        if aoi_count != 1:
+            return {"status":"error","message":"Provide exactly ONE area: place OR bbox OR polygon_path OR (point & dist)."}
+
+        # Build graph kwargs
+        graph_kwargs = dict(custom_filter=custom_filter) if custom_filter else dict(network_type=network_type)
+
+        # Build graph
+        if place is not None:
+            G = ox.graph_from_place(
+                place,
+                simplify=simplify,
+                retain_all=retain_all,
+                truncate_by_edge=truncate_by_edge,
+                **graph_kwargs
+            )
+        elif bbox is not None:
+            north, south, east, west = bbox
+            G = ox.graph_from_bbox(
+                north, south, east, west,
+                simplify=simplify,
+                retain_all=retain_all,
+                truncate_by_edge=truncate_by_edge,
+                **graph_kwargs
+            )
+        elif polygon_path is not None:
+            if not os.path.exists(polygon_path):
+                return {"status":"error","message":f"Polygon file not found: {polygon_path}"}
+            gpoly = gpd.read_file(polygon_path)
+            if gpoly.empty:
+                return {"status":"error","message":"Polygon file has no features."}
+            geom = gpoly.geometry.iloc[0]
+            if geom is None or geom.is_empty:
+                return {"status":"error","message":"First polygon geometry is empty."}
+            if geom.geom_type not in {"Polygon","MultiPolygon"}:
+                geom = geom.convex_hull
+            G = ox.graph_from_polygon(
+                geom,
+                simplify=simplify,
+                retain_all=retain_all,
+                truncate_by_edge=truncate_by_edge,
+                **graph_kwargs
+            )
+        else:
+            # point + dist (meters)
+            lat, lon = point
+            G = ox.graph_from_point(
+                (lat, lon),
+                dist=float(dist),
+                simplify=simplify,
+                retain_all=retain_all,
+                truncate_by_edge=truncate_by_edge,
+                **graph_kwargs
+            )
+
+        # Undirected?
+        if to_undirected:
+            G = ox.utils_graph.get_undirected(G)
+
+        # Enrichment
+        if add_speeds:
+            G = ox.add_edge_speeds(G)          # adds 'speed_kph' (lookup if missing)
+        if add_travel_time:
+            G = ox.add_edge_travel_times(G)    # adds 'travel_time' (seconds)
+
+        # Project to UTM (optional)
+        if project_to_utm:
+            G = ox.project_graph(G)
+
+        # Convert to GeoDataFrames & CRS
+        gnodes, gedges = ox.graph_to_gdfs(G, nodes=True, edges=True, node_geometry=True, fill_edge_geometry=True)
+        projected_crs = str(gnodes.crs) if gnodes.crs else None
+
+        # Basic stats
+        n_nodes = G.number_of_nodes()
+        n_edges = G.number_of_edges()
+        is_dir = G.is_directed()
+        density = float(nx.density(G)) if n_nodes else 0.0
+
+        # Extent & area (if projected)
+        if gnodes.crs and gnodes.crs.is_projected:
+            minx, miny, maxx, maxy = gnodes.total_bounds
+            extent = {"minx":float(minx),"miny":float(miny),"maxx":float(maxx),"maxy":float(maxy)}
+            area_km2 = float(((maxx-minx)*(maxy-miny))/1e6)
+        else:
+            tb = gnodes.to_crs(4326).total_bounds  # (minx,miny,maxx,maxy)
+            minx, miny, maxx, maxy = tb
+            extent = {"minlon":float(minx),"minlat":float(miny),"maxlon":float(maxx),"maxlat":float(maxy)}
+            area_km2 = None
+
+        # Previews
+        node_preview_df = gnodes.reset_index().head(5)
+        id_col = node_preview_df.columns[0]  # index name after reset_index (osmid usually)
+        node_preview = node_preview_df[[id_col, "y", "x"]].rename(columns={id_col: "id"}).to_dict(orient="records")
+
+        edge_cols = [c for c in ["u","v","highway","length","speed_kph","travel_time","name"] if c in gedges.columns]
+        # always include u,v first if present
+        keep = []
+        if "u" in gedges.columns: keep.append("u")
+        if "v" in gedges.columns: keep.append("v")
+        keep += [c for c in ["highway","length","speed_kph","travel_time","name"] if c in gedges.columns]
+        edge_preview = gedges.head(5)[keep].to_dict(orient="records")
+
+        # Save outputs
+        saved = {}
+        if save_graphml_path:
+            try:
+                if os.path.dirname(save_graphml_path):
+                    os.makedirs(os.path.dirname(save_graphml_path), exist_ok=True)
+                ox.save_graphml(G, save_graphml_path)
+                saved["graphml"] = save_graphml_path
+            except Exception as e:
+                return {"status":"error","message":f"Failed to save GraphML: {e}"}
+
+        if save_gpkg_path:
+            try:
+                if os.path.dirname(save_gpkg_path):
+                    os.makedirs(os.path.dirname(save_gpkg_path), exist_ok=True)
+                gnodes.to_file(save_gpkg_path, layer="nodes", driver="GPKG")
+                gedges.to_file(save_gpkg_path, layer="edges", driver="GPKG")
+                saved["gpkg"] = save_gpkg_path
+            except Exception as e:
+                return {"status":"error","message":f"Failed to save GeoPackage: {e}"}
+
+        result = {
+            "n_nodes": int(n_nodes),
+            "n_edges": int(n_edges),
+            "is_directed": bool(is_dir),
+            "density": density,
+            "network_type": network_type if not custom_filter else f"custom:{custom_filter}",
+            "projected_crs": projected_crs,
+            "extent": extent,
+            "area_km2_box": area_km2,
+            "node_preview": node_preview,
+            "edge_preview": edge_preview,
+            "saved": saved
+        }
+        return {"status":"success","message":"OSM graph downloaded successfully","result":result}
+
+    except Exception as e:
+        return {"status":"error","message":f"Failed to download OSM graph: {str(e)}"}
 
