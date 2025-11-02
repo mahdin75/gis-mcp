@@ -44,6 +44,17 @@ dependencies = [
     "esda>=2.7.0",
     "spreg==1.8.3",
     "pillow>=10.0.0",
+    "matplotlib>=3.10.7",
+    "rtree>=1.4.1",
+    "pointpats>=2.5.2",
+    "giddy>=2.3.6",
+    "networkx>=3.4.2",
+    "osmnx>=2.0.4",
+    "pyvis>=0.3.2",
+    "folium>=0.20.0",
+    "lxml>=6.0.2",
+    "openpyxl>=3.1.5",
+    "pyarrow>=21.0.0",
 ]
 
 [project.optional-dependencies]

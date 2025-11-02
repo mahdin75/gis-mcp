@@ -67,6 +67,7 @@ from . import (
     rasterio_functions,
     pyproj_functions,
     pysal_functions,
+    nx_osmnx_functions,
 )
 
 # Configure logging

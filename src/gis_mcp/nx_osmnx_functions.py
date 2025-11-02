@@ -1,0 +1,1456 @@
+import os
+import logging
+import json
+import csv
+import math
+import pandas as pd
+import geopandas as gpd
+import networkx as nx
+from numbers import Number
+from typing import List, Optional, Union, Dict, Any, Iterable, Tuple
+from shapely.geometry import LineString, MultiLineString
+from .mcp import gis_mcp
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+@gis_mcp.resource("gis://operation/nx_osmnx")
+def get_nx_osmnx_operations() -> Dict[str, List[str]]:
+    """List available rasterio operations."""
+    return {
+        "operations": [
+            "nx_create_graph",
+            "nx_manipulate_graph",
+            "nx_centrality",
+            "nx_shortest_paths",
+            "nx_download_graph",
+            "nx_visualize_graph"
+        ]
+    }
+
+@gis_mcp.tool()
+def nx_create_graph(
+    edge_path: str,
+    node_path: Optional[str] = None,
+    # Column mappings (for tabular edge sources)
+    source_col: str = "source",
+    target_col: str = "target",
+    weight_col: Optional[str] = None,
+    edge_attrs: Optional[List[str]] = None,    # extra edge attribute columns to carry over
+    # Node table settings (optional)
+    node_id_col: str = "id",
+    node_attrs: Optional[List[str]] = None,    # node attribute columns to carry over
+    # Graph type
+    directed: bool = False,
+    multigraph: bool = False,
+    allow_self_loops: bool = False,
+    # Geo options (when edge_path is a spatial file with LineString/MultiLineString)
+    from_geometry: bool = False,               # if True, endpoints of lines form edges
+    geometry_col: str = "geometry",
+    # Output (optional)
+    output_path: Optional[str] = None,         # if provided, graph is serialized
+    output_format: Optional[str] = None        # 'graphml' | 'gexf' | 'gpickle'
+) -> Dict[str, Any]:
+    """
+    Create a NetworkX graph from an edge file (CSV/TSV/Excel/Parquet/Feather/JSON or Shapefile/GPKG)
+    and optional node file. Returns JSON with summary stats and small previews.
+
+    Nodes:
+      - From tabular edges: values in `source_col` & `target_col`
+      - From geometry edges: endpoints (x,y) tuples of each LineString/MultiLineString segment
+
+    Edge attributes:
+      - `weight_col` becomes the 'weight' attribute (float if possible)
+      - Any columns listed in `edge_attrs` are carried over as attributes
+
+    Node attributes (optional):
+      - Loaded from `node_path` using `node_id_col` as the node identifier
+      - Columns listed in `node_attrs` are attached to nodes
+    """
+    try:
+        if not os.path.exists(edge_path):
+            return {"status": "error", "message": f"Edge file not found: {edge_path}"}
+
+        def _ext(p): 
+            return os.path.splitext(p)[1].lower()
+
+        # ---------- READ EDGES ----------
+        edges_df = None
+        gdf_edges = None
+        ext = _ext(edge_path)
+
+        # Decide parser based on extension
+        tabular_exts = {".csv", ".tsv", ".txt", ".parquet", ".feather", ".json", ".xlsx"}
+        geo_exts = {".shp", ".gpkg", ".geojson"}
+
+        if from_geometry or ext in geo_exts:
+            # Geo path
+            gdf_edges = gpd.read_file(edge_path)
+            if geometry_col not in gdf_edges.columns and gdf_edges.geometry.name:
+                geometry_col = gdf_edges.geometry.name
+            if geometry_col not in gdf_edges.columns:
+                return {"status": "error", "message": f"Geometry column '{geometry_col}' not found in {edge_path}"}
+        else:
+            # Tabular path
+            if ext in {".csv", ".tsv", ".txt"}:
+                sep = "\t" if ext in {".tsv", ".txt"} else ","
+                edges_df = pd.read_csv(edge_path, sep=sep)
+            elif ext == ".xlsx":
+                edges_df = pd.read_excel(edge_path)
+            elif ext == ".parquet":
+                edges_df = pd.read_parquet(edge_path)
+            elif ext == ".feather":
+                edges_df = pd.read_feather(edge_path)
+            elif ext == ".json":
+                # expect records or edge list; pandas will try to infer
+                try:
+                    edges_df = pd.read_json(edge_path, orient="records")
+                except ValueError:
+                    edges_df = pd.read_json(edge_path)  # fallback
+            else:
+                return {"status": "error", "message": f"Unsupported edge file extension: {ext}"}
+
+        # ---------- BUILD GRAPH ----------
+        if multigraph and directed:
+            G: Union[nx.MultiDiGraph, nx.MultiGraph, nx.DiGraph, nx.Graph] = nx.MultiDiGraph()
+        elif multigraph and not directed:
+            G = nx.MultiGraph()
+        elif not multigraph and directed:
+            G = nx.DiGraph()
+        else:
+            G = nx.Graph()
+
+        # Helper to add one edge
+        def _add_edge(u, v, attr: Dict[str, Any]):
+            if not allow_self_loops and (u == v):
+                return
+            # coerce weight
+            if weight_col is not None:
+                wval = attr.get(weight_col, None)
+                if wval is not None:
+                    try:
+                        attr["weight"] = float(wval)
+                    except Exception:
+                        attr["weight"] = wval  # keep as-is if not convertible
+            if not multigraph:
+                attr.pop("key", None)
+            G.add_edge(u, v, **attr)
+
+        # (A) From geometry (LineString/MultiLineString)
+        if gdf_edges is not None:
+            # carry over selected attributes
+            carry_cols = set(edge_attrs or [])
+            carry_cols = [c for c in carry_cols if c in gdf_edges.columns and c != geometry_col]
+            for _, row in gdf_edges.iterrows():
+                geom = row[geometry_col]
+                if isinstance(geom, LineString):
+                    coords = list(geom.coords)
+                    if len(coords) >= 2:
+                        u = (coords[0][0], coords[0][1])
+                        v = (coords[-1][0], coords[-1][1])
+                        attr = {c: row[c] for c in carry_cols}
+                        if weight_col and weight_col in row.index:
+                            attr[weight_col] = row[weight_col]
+                        _add_edge(u, v, attr)
+                elif isinstance(geom, MultiLineString):
+                    for part in geom.geoms:
+                        coords = list(part.coords)
+                        if len(coords) >= 2:
+                            u = (coords[0][0], coords[0][1])
+                            v = (coords[-1][0], coords[-1][1])
+                            attr = {c: row[c] for c in carry_cols}
+                            if weight_col and weight_col in row.index:
+                                attr[weight_col] = row[weight_col]
+                            _add_edge(u, v, attr)
+                else:
+                    # ignore non-line geometries
+                    continue
+
+        # (B) From tabular (source/target)
+        if edges_df is not None:
+            miss = [c for c in [source_col, target_col] if c not in edges_df.columns]
+            if miss:
+                return {"status": "error", "message": f"Missing columns in edge table: {miss}"}
+
+            carry_cols = set(edge_attrs or [])
+            # ensure weight_col included too so we can coerce
+            if weight_col:
+                carry_cols.add(weight_col)
+            carry_cols = [c for c in carry_cols if c in edges_df.columns and c not in (source_col, target_col)]
+
+            for _, row in edges_df.iterrows():
+                u = row[source_col]
+                v = row[target_col]
+                attr = {c: row[c] for c in carry_cols}
+                _add_edge(u, v, attr)
+
+        # ---------- NODE ATTRIBUTES (optional) ----------
+        if node_path:
+            if not os.path.exists(node_path):
+                return {"status": "error", "message": f"Node file not found: {node_path}"}
+            extn = _ext(node_path)
+            if extn in {".csv", ".tsv", ".txt"}:
+                sep = "\t" if extn in {".tsv", ".txt"} else ","
+                nodes_df = pd.read_csv(node_path, sep=sep)
+            elif extn == ".xlsx":
+                nodes_df = pd.read_excel(node_path)
+            elif extn == ".parquet":
+                nodes_df = pd.read_parquet(node_path)
+            elif extn == ".feather":
+                nodes_df = pd.read_feather(node_path)
+            elif extn == ".json":
+                try:
+                    nodes_df = pd.read_json(node_path, orient="records")
+                except ValueError:
+                    nodes_df = pd.read_json(node_path)
+            elif extn in {".shp", ".gpkg", ".geojson"}:
+                nodes_df = gpd.read_file(node_path)
+            else:
+                return {"status": "error", "message": f"Unsupported node file extension: {extn}"}
+
+            if node_id_col not in nodes_df.columns:
+                return {"status": "error", "message": f"node_id_col '{node_id_col}' not found in node table."}
+
+            # pick attrs
+            nattrs = [c for c in (node_attrs or []) if c in nodes_df.columns and c != node_id_col]
+            for _, row in nodes_df.iterrows():
+                nid = row[node_id_col]
+                attrs = {c: row[c] for c in nattrs}
+                if isinstance(nodes_df, gpd.GeoDataFrame) and nodes_df.geometry.name in nodes_df.columns:
+                    geom = row[nodes_df.geometry.name]
+                    if geom is not None:
+                        attrs["geometry_wkt"] = getattr(geom, "wkt", None)
+                if nid in G:  # only set attributes for nodes present in G
+                    nx.set_node_attributes(G, {nid: attrs})
+
+        # ---------- SUMMARY ----------
+        n_nodes = G.number_of_nodes()
+        n_edges = G.number_of_edges()
+        is_dir = nx.is_directed(G)
+        # self-loops
+        if multigraph:
+            self_loops = sum(1 for u, v, _k in G.edges(keys=True) if u == v)
+        else:
+            self_loops = nx.number_of_selfloops(G)
+
+        # degrees
+        degs = dict(G.degree())
+        avg_deg = float(sum(degs.values()) / n_nodes) if n_nodes else 0.0
+        density = float(nx.density(G)) if n_nodes else 0.0
+
+        # components
+        if is_dir:
+            wcc = [len(c) for c in nx.weakly_connected_components(G)]
+            scc = [len(c) for c in nx.strongly_connected_components(G)]
+            comp_info = {
+                "weak_components": {"count": len(wcc), "largest": max(wcc) if wcc else 0},
+                "strong_components": {"count": len(scc), "largest": max(scc) if scc else 0},
+            }
+            isolates = list(nx.isolates(G))
+        else:
+            cc = [len(c) for c in nx.connected_components(G)] if n_nodes else []
+            comp_info = {"components": {"count": len(cc), "largest": max(cc) if cc else 0}}
+            isolates = list(nx.isolates(G))
+
+        # Previews
+        edge_preview = []
+        if multigraph:
+            for u, v, k, d in list(G.edges(keys=True, data=True))[:5]:
+                item = {"u": u, "v": v, "key": k}
+                item.update({k2: d[k2] for k2 in d})
+                edge_preview.append(item)
+        else:
+            for u, v, d in list(G.edges(data=True))[:5]:
+                item = {"u": u, "v": v}
+                item.update({k2: d[k2] for k2 in d})
+                edge_preview.append(item)
+
+        node_preview = []
+        for n, d in list(G.nodes(data=True))[:5]:
+            item = {"id": n}
+            item.update({k2: d[k2] for k2 in d})
+            item["degree"] = degs.get(n, 0)
+            node_preview.append(item)
+
+        # ---------- SAVE (optional) ----------
+        saved_to = None
+        if output_path and output_format:
+            fmt = output_format.lower()
+            try:
+                if fmt == "graphml":
+                    nx.write_graphml(G, output_path)
+                elif fmt == "gexf":
+                    nx.write_gexf(G, output_path)
+                elif fmt == "gpickle":
+                    nx.write_gpickle(G, output_path)
+                else:
+                    return {"status": "error", "message": f"Unknown output_format: {output_format}"}
+                saved_to = output_path
+            except Exception as e:
+                return {"status": "error", "message": f"Failed to save graph ({output_format}): {str(e)}"}
+
+        # ---------- RESULT ----------
+        result = {
+            "graph_type": ("Multi" if multigraph else "") + ("DiGraph" if directed else "Graph"),
+            "n_nodes": int(n_nodes),
+            "n_edges": int(n_edges),
+            "is_directed": bool(is_dir),
+            "self_loops": int(self_loops),
+            "isolates_count": int(len(isolates)),
+            "density": density,
+            "avg_degree": avg_deg,
+            "components": comp_info,
+            "edge_preview": edge_preview,
+            "node_preview": node_preview,
+            "saved_to": saved_to
+        }
+        return {"status": "success", "message": "Graph created successfully", "result": result}
+
+    except Exception as e:
+        return {"status": "error", "message": f"Failed to create graph: {str(e)}"}
+
+
+@gis_mcp.tool()
+def nx_manipulate_graph(
+    input_path: str,
+    operations: List[Dict[str, Any]],   # ordered list of ops (see below)
+    output_path: Optional[str] = None,  # if provided, graph is saved
+    output_format: Optional[str] = None # 'graphml'|'gexf'|'gpickle'
+) -> Dict[str, Any]:
+    """
+    Manipulate a NetworkX graph by applying a sequence of operations.
+
+    Supported operations (op field):
+      - 'add_nodes': {'nodes': [id|{id, attrs}], 'default_attrs': {...}?}
+      - 'add_edges': {'edges': [(u,v)|{u,v,attrs}], 'default_attrs': {...}?}
+      - 'remove_nodes': {'nodes': [ids]}
+      - 'remove_edges': {'edges': [(u,v)|(u,v,key)]}
+      - 'set_node_attrs': {'attrs': {node: {k:v,...}, ...}}
+      - 'set_edge_attrs': {'attrs': [{u,v,attrs}|{u,v,key,attrs}, ...]}
+      - 'relabel_nodes': {'mapping': {old:new}, 'copy': False}
+      - 'induced_subgraph': {'nodes': [ids]}
+      - 'filter_nodes': {'keep_if': {'attr': 'degree|attribute', 'op': '>=', 'value': X}}
+      - 'largest_component': {'strong': False}  # for DiGraph, strong vs weak
+      - 'to_undirected': {}
+      - 'to_directed': {}
+      - 'reverse': {'copy': True}
+      - 'simplify_multigraph': {'aggregate': {'weight': 'sum'|'mean'|'max'|...}}
+      - 'contract_nodes': {'mapping': {node: group_id}, 'aggregate': {'weight':'sum', ...}}
+    """
+    try:
+        if not os.path.exists(input_path):
+            return {"status": "error", "message": f"Input graph not found: {input_path}"}
+
+        # ---- load ----
+        ext = os.path.splitext(input_path)[1].lower()
+        if ext == ".graphml":
+            G = nx.read_graphml(input_path)
+        elif ext == ".gexf":
+            G = nx.read_gexf(input_path)
+        elif ext in {".gpickle", ".pickle"}:
+            G = nx.read_gpickle(input_path)
+        else:
+            return {"status": "error", "message": f"Unsupported input format: {ext}"}
+
+        def _is_multi(G): return G.is_multigraph()
+
+        # ---- helpers ----
+        def _apply_add_nodes(op):
+            nodes = op.get("nodes", [])
+            default = op.get("default_attrs", {}) or {}
+            for item in nodes:
+                if isinstance(item, dict) and "id" in item:
+                    nid = item["id"]; attrs = {**default, **{k:v for k,v in item.items() if k!='id'}}
+                else:
+                    nid = item; attrs = dict(default)
+                G.add_node(nid, **attrs)
+
+        def _apply_add_edges(op):
+            edges = op.get("edges", [])
+            default = op.get("default_attrs", {}) or {}
+            for item in edges:
+                if isinstance(item, dict):
+                    u = item["u"]; v = item["v"]
+                    attrs = {**default, **{k:v for k,v in item.items() if k not in ("u","v","key")}}
+                    if _is_multi(G) and "key" in item:
+                        G.add_edge(u, v, key=item["key"], **attrs)
+                    else:
+                        G.add_edge(u, v, **attrs)
+                else:
+                    # tuple (u,v) or (u,v,key)
+                    if _is_multi(G) and isinstance(item, (tuple, list)) and len(item)==3:
+                        u,v,k = item; G.add_edge(u,v,key=k, **default)
+                    else:
+                        u,v = item; G.add_edge(u,v, **default)
+
+        def _apply_remove_nodes(op):
+            for n in op.get("nodes", []):
+                if G.has_node(n): G.remove_node(n)
+
+        def _apply_remove_edges(op):
+            for e in op.get("edges", []):
+                if _is_multi(G) and isinstance(e, (tuple,list)) and len(e)==3:
+                    u,v,k = e
+                    if G.has_edge(u,v,k): G.remove_edge(u,v,k)
+                else:
+                    u,v = e
+                    if G.has_edge(u,v): G.remove_edge(u,v)
+
+        def _apply_set_node_attrs(op):
+            for n, attrs in (op.get("attrs") or {}).items():
+                if G.has_node(n): G.nodes[n].update(attrs)
+
+        def _apply_set_edge_attrs(op):
+            for rec in (op.get("attrs") or []):
+                u = rec.get("u"); v = rec.get("v"); attrs = rec.get("attrs", {})
+                if _is_multi(G) and "key" in rec:
+                    k = rec["key"]
+                    if G.has_edge(u,v,k): G.edges[u,v,k].update(attrs)
+                else:
+                    if G.has_edge(u,v): G.edges[u,v].update(attrs)
+
+        def _apply_relabel(op):
+            nonlocal G
+            mapping = op.get("mapping", {})
+            copy = bool(op.get("copy", False))
+            G = nx.relabel_nodes(G, mapping, copy=copy)
+
+        def _apply_induced(op):
+            nonlocal G
+            nodes = [n for n in op.get("nodes", []) if G.has_node(n)]
+            nonlocal G
+            G = G.subgraph(nodes).copy()
+
+        def _apply_filter_nodes(op):
+            nonlocal G
+            rule = op.get("keep_if", {})
+            attr = rule.get("attr")
+            oper = rule.get("op", "==")
+            val  = rule.get("value")
+            keep=set()
+            if attr == "degree":
+                deg = dict(G.degree())
+                for n,d in deg.items():
+                    if eval(f"d {oper} {val}"): keep.add(n)
+            else:
+                for n,data in G.nodes(data=True):
+                    x = data.get(attr, None)
+                    try:
+                        if eval(f"x {oper} {repr(val)}"): keep.add(n)
+                    except Exception:
+                        pass
+            G = G.subgraph(keep).copy()
+
+        def _apply_largest_component(op):
+            nonlocal G
+            strong = bool(op.get("strong", False))
+            nonlocal G
+            if G.is_directed():
+                comps = list(nx.strongly_connected_components(G)) if strong else list(nx.weakly_connected_components(G))
+            else:
+                comps = list(nx.connected_components(G))
+            if comps:
+                biggest = max(comps, key=len)
+                G = G.subgraph(biggest).copy()
+
+        def _apply_to_undirected(_): 
+            nonlocal G
+            nonlocal G; G = G.to_undirected().copy()
+
+        def _apply_to_directed(_): 
+            nonlocal G
+            nonlocal G; G = G.to_directed().copy()
+
+        def _apply_reverse(op):
+            nonlocal G
+            copy = bool(op.get("copy", True))
+            nonlocal G; G = G.reverse(copy=copy)
+
+        def _aggregate(values, how):
+            nonlocal G
+            import statistics
+            if how == "sum": return sum(values)
+            if how == "mean": return statistics.fmean(values) if values else 0.0
+            if how == "max": return max(values)
+            if how == "min": return min(values)
+            if how == "first": return values[0]
+            if how == "last": return values[-1]
+            return values[-1]  # default
+
+        def _apply_simplify_multigraph(op):
+            nonlocal G
+            if not _is_multi(G): return
+            agg = op.get("aggregate", {})  # {'weight':'sum', 'capacity':'max', ...}
+            H = nx.DiGraph() if G.is_directed() else nx.Graph()
+            H.add_nodes_from(G.nodes(data=True))
+            for u,v,data in G.edges(data=True):
+                key = (u,v) if not G.is_directed() else (u,v)
+                if H.has_edge(u,v):
+                    # merge attributes
+                    for a, how in agg.items():
+                        vals = H.edges[u,v].get(a, [])
+                        if not isinstance(vals, list): vals = [vals]
+                        vals.append(data.get(a))
+                        H.edges[u,v][a] = _aggregate([x for x in vals if x is not None], how)
+                else:
+                    H.add_edge(u,v, **{a: data.get(a) for a in set(agg.keys()).union(data.keys())})
+                    # initialize aggregated fields
+                    for a, how in agg.items():
+                        val = data.get(a)
+                        H.edges[u,v][a] = val
+            G = H
+
+        def _apply_contract_nodes(op):
+            nonlocal G
+            mapping = op.get("mapping", {})  # {node: group_id}
+            agg = op.get("aggregate", {})    # edge attr aggregation rules
+            # contract by mapping, then simplify multiedges by agg
+            nonlocal G
+            H = nx.contracted_nodes if False else None  # placeholder (we'll use relabel + merge)
+            # Relabel nodes to group ids
+            G = nx.relabel_nodes(G, mapping, copy=False)
+            # After relabel, parallel edges can exist → convert to Multi, then simplify
+            G = nx.MultiDiGraph(G) if G.is_directed() else nx.MultiGraph(G)
+            _apply_simplify_multigraph({"aggregate": agg})
+
+        # ---- dispatch table ----
+        handlers = {
+            "add_nodes": _apply_add_nodes,
+            "add_edges": _apply_add_edges,
+            "remove_nodes": _apply_remove_nodes,
+            "remove_edges": _apply_remove_edges,
+            "set_node_attrs": _apply_set_node_attrs,
+            "set_edge_attrs": _apply_set_edge_attrs,
+            "relabel_nodes": _apply_relabel,
+            "induced_subgraph": _apply_induced,
+            "filter_nodes": _apply_filter_nodes,
+            "largest_component": _apply_largest_component,
+            "to_undirected": _apply_to_undirected,
+            "to_directed": _apply_to_directed,
+            "reverse": _apply_reverse,
+            "simplify_multigraph": _apply_simplify_multigraph,
+            "contract_nodes": _apply_contract_nodes,
+        }
+
+        # ---- apply operations ----
+        for op in (operations or []):
+            kind = op.get("op")
+            fn = handlers.get(kind)
+            if not fn:
+                return {"status":"error","message":f"Unknown operation: {kind}"}
+            fn(op)
+
+        # ---- summary & previews ----
+        n_nodes = G.number_of_nodes()
+        n_edges = G.number_of_edges()
+        density = float(nx.density(G)) if n_nodes else 0.0
+        degs = dict(G.degree())
+        avg_deg = float(sum(degs.values())/n_nodes) if n_nodes else 0.0
+        isolates = list(nx.isolates(G))
+        is_dir = G.is_directed()
+
+        if is_dir:
+            wcc = [len(c) for c in nx.weakly_connected_components(G)]
+            comps = {"weak_components": {"count": len(wcc), "largest": max(wcc) if wcc else 0}}
+        else:
+            cc = [len(c) for c in nx.connected_components(G)] if n_nodes else []
+            comps = {"components": {"count": len(cc), "largest": max(cc) if cc else 0}}
+
+        edge_preview = []
+        if _is_multi(G):
+            for u,v,k,d in list(G.edges(keys=True, data=True))[:5]:
+                row = {"u":u,"v":v,"key":k}; row.update(d); edge_preview.append(row)
+        else:
+            for u,v,d in list(G.edges(data=True))[:5]:
+                row = {"u":u,"v":v}; row.update(d); edge_preview.append(row)
+
+        node_preview = []
+        for n,d in list(G.nodes(data=True))[:5]:
+            row = {"id":n,"degree":degs.get(n,0)}; row.update(d); node_preview.append(row)
+
+        # ---- save (optional) ----
+        saved_to = None
+        if output_path and output_format:
+            fmt = (output_format or "").lower()
+            if fmt == "graphml":
+                nx.write_graphml(G, output_path)
+            elif fmt == "gexf":
+                nx.write_gexf(G, output_path)
+            elif fmt == "gpickle":
+                nx.write_gpickle(G, output_path)
+            else:
+                return {"status":"error","message":f"Unknown output_format: {output_format}"}
+            saved_to = output_path
+
+        result = {
+            "n_nodes": int(n_nodes),
+            "n_edges": int(n_edges),
+            "is_directed": bool(is_dir),
+            "density": density,
+            "avg_degree": avg_deg,
+            "isolates_count": int(len(isolates)),
+            "components": comps,
+            "node_preview": node_preview,
+            "edge_preview": edge_preview,
+            "saved_to": saved_to
+        }
+        return {"status":"success","message":"Graph manipulated successfully","result":result}
+
+    except Exception as e:
+        return {"status":"error","message":f"Failed to manipulate graph: {str(e)}"}
+
+
+
+@gis_mcp.tool()
+def nx_centrality(
+    input_path: str,
+    measures: List[str] = None,           # e.g. ["degree","strength","betweenness","closeness","eigenvector","pagerank","katz","harmonic","hits"]
+    weight_attr: Optional[str] = None,    # edge attribute for weights (used by most measures); for closeness it's treated as 'distance'
+    as_undirected: bool = False,          # compute on an undirected copy
+    largest_component: bool = False,      # restrict to largest (weak for DiGraph, connected for Graph)
+    endpoints: bool = False,              # betweenness option
+    normalized: bool = True,              # betweenness normalization
+    alpha_pr: float = 0.85,               # PageRank damping
+    katz_alpha: float = 0.1,              # Katz attenuation (must be < 1/lambda_max)
+    katz_beta: float = 1.0,               # Katz exogenous factor
+    max_iter: int = 1000,
+    tol: float = 1e-06,
+    restrict_to_nodes: Optional[List[Any]] = None,  # compute/report only for these nodes (if provided)
+    top_k: int = 20,                      # return top-k per metric (set None to return all)
+    save_csv_path: Optional[str] = None   # if provided, writes a CSV merging all requested metrics
+) -> Dict[str, Any]:
+    """
+    Compute centrality metrics on a NetworkX graph loaded from disk.
+
+    Notes:
+      - 'strength' = weighted degree (sum of weights). If weight_attr is None, each edge counts as 1.
+      - For closeness/harmonic, 'weight_attr' is treated as a distance/cost (smaller is closer).
+      - HITS only runs for DiGraph; returns 'hubs' and 'authorities'.
+      - If 'as_undirected=True', metrics are computed on G.to_undirected().
+    """
+    try:
+        if measures is None:
+            measures = ["degree", "strength", "betweenness", "closeness", "eigenvector", "pagerank"]
+
+        if not os.path.exists(input_path):
+            return {"status": "error", "message": f"Input graph not found: {input_path}"}
+
+        # ---- load graph ----
+        ext = os.path.splitext(input_path)[1].lower()
+        if ext == ".graphml":
+            G = nx.read_graphml(input_path)
+        elif ext == ".gexf":
+            G = nx.read_gexf(input_path)
+        elif ext in {".gpickle", ".pickle"}:
+            G = nx.read_gpickle(input_path)
+        else:
+            return {"status": "error", "message": f"Unsupported input format: {ext}"}
+
+        # Optionally convert to undirected for analysis
+        if as_undirected:
+            G = G.to_undirected()
+
+        # Restrict to largest component if requested
+        if largest_component:
+            if G.is_directed():
+                comps = list(nx.weakly_connected_components(G))
+            else:
+                comps = list(nx.connected_components(G))
+            if comps:
+                G = G.subgraph(max(comps, key=len)).copy()
+
+        # If restricting to specific nodes, induce a subgraph containing only them (if present)
+        if restrict_to_nodes:
+            keep = [n for n in restrict_to_nodes if n in G]
+            if not keep:
+                return {"status":"error","message":"None of the restrict_to_nodes are in the graph."}
+            G = G.subgraph(keep).copy()
+
+        n = G.number_of_nodes()
+        if n == 0:
+            return {"status":"error","message":"Graph has no nodes after requested filters."}
+
+        # ---- compute metrics ----
+        out: Dict[str, Any] = {"n_nodes": n, "n_edges": G.number_of_edges(), "is_directed": G.is_directed()}
+        results: Dict[str, Dict[Any, float]] = {}
+
+        def _topk(d: Dict[Any, float]):
+            items = sorted(d.items(), key=lambda kv: (kv[1], str(kv[0])), reverse=True)
+            if top_k is None:
+                return [{"node": k, "value": float(v)} for k, v in items]
+            return [{"node": k, "value": float(v)} for k, v in items[:top_k]]
+
+        # Degree centrality (unweighted) — scaled by (n-1) in NetworkX
+        if "degree" in measures:
+            results["degree"] = nx.degree_centrality(G)
+
+        # Strength (weighted degree) — sum of weights (or 1 if no weight_attr)
+        if "strength" in measures:
+            # MultiGraphs sum over parallel edges too
+            results["strength"] = dict(G.degree(weight=weight_attr))
+
+        # Betweenness
+        if "betweenness" in measures:
+            results["betweenness"] = nx.betweenness_centrality(
+                G, weight=weight_attr, normalized=normalized, endpoints=endpoints
+            )
+
+        # Closeness (distance = weight_attr). If weight_attr is None -> unweighted shortest paths
+        if "closeness" in measures:
+            results["closeness"] = nx.closeness_centrality(G, distance=weight_attr)
+
+        # Harmonic centrality (more stable on disconnected graphs)
+        if "harmonic" in measures and hasattr(nx, "harmonic_centrality"):
+            results["harmonic"] = nx.harmonic_centrality(G, distance=weight_attr)
+
+        # Eigenvector centrality
+        if "eigenvector" in measures:
+            try:
+                results["eigenvector"] = nx.eigenvector_centrality(
+                    G, max_iter=max_iter, tol=tol, weight=weight_attr
+                )
+            except nx.PowerIterationFailedConvergence:
+                results["eigenvector"] = {}  # signal failure gracefully
+                out.setdefault("warnings", []).append("Eigenvector centrality did not converge; try increasing max_iter.")
+
+        # PageRank
+        if "pagerank" in measures:
+            results["pagerank"] = nx.pagerank(G, alpha=alpha_pr, max_iter=max_iter, tol=tol, weight=weight_attr)
+
+        # Katz centrality
+        if "katz" in measures:
+            try:
+                results["katz"] = nx.katz_centrality(
+                    G, alpha=katz_alpha, beta=katz_beta, max_iter=max_iter, tol=tol, weight=weight_attr, normalized=True
+                )
+            except nx.PowerIterationFailedConvergence:
+                results["katz"] = {}
+                out.setdefault("warnings", []).append("Katz centrality did not converge; lower katz_alpha or increase max_iter.")
+
+        # HITS (only meaningful for DiGraph)
+        if "hits" in measures:
+            if not G.is_directed():
+                out.setdefault("warnings", []).append("HITS requested but graph is undirected; skipping.")
+            else:
+                try:
+                    hubs, auth = nx.hits(G, max_iter=max_iter, tol=tol, normalized=True)
+                    # flatten into two separate measures
+                    results["hits_hubs"] = hubs
+                    results["hits_authorities"] = auth
+                except nx.PowerIterationFailedConvergence:
+                    results["hits_hubs"] = {}
+                    results["hits_authorities"] = {}
+                    out.setdefault("warnings", []).append("HITS did not converge; increase max_iter or check graph structure.")
+
+        # ---- assemble output (top-k lists) ----
+        topk_out = {name: _topk(vals) for name, vals in results.items() if isinstance(vals, dict) and vals}
+
+        out.update({
+            "measures_computed": list(topk_out.keys()),
+            "top_k": int(top_k) if top_k is not None else None,
+            "results_topk": topk_out
+        })
+
+        # ---- optional CSV save (merge all measures) ----
+        if save_csv_path:
+            # collect union of nodes and write long-wide table
+            all_nodes = set()
+            for vals in results.values():
+                if isinstance(vals, dict):
+                    all_nodes.update(vals.keys())
+            rows = []
+            for n_id in all_nodes:
+                row = {"node": n_id}
+                for m in results.keys():
+                    v = results[m].get(n_id, None) if isinstance(results[m], dict) else None
+                    row[m] = v
+                rows.append(row)
+            # write CSV
+            try:
+                import pandas as pd
+                pd.DataFrame(rows).to_csv(save_csv_path, index=False)
+                out["saved_csv"] = save_csv_path
+            except Exception as e:
+                # fallback manual CSV
+                try:
+                    fieldnames = ["node"] + list(results.keys())
+                    with open(save_csv_path, "w", newline="", encoding="utf-8") as f:
+                        w = csv.DictWriter(f, fieldnames=fieldnames)
+                        w.writeheader()
+                        for r in rows:
+                            w.writerow(r)
+                    out["saved_csv"] = save_csv_path
+                except Exception as ee:
+                    out.setdefault("warnings", []).append(f"Failed to save CSV: {ee}")
+
+        return {"status": "success", "message": "Centrality computed successfully", "result": out}
+
+    except Exception as e:
+        return {"status": "error", "message": f"Failed to compute centrality: {str(e)}"}
+
+
+
+@gis_mcp.tool()
+def nx_shortest_paths(
+    input_path: str,
+    # who/what to compute
+    sources: Union[Any, List[Any]],                 # a node or list of nodes
+    targets: Optional[Union[Any, List[Any]]] = None,# None => from sources to ALL other nodes
+    mode: str = "single",                           # 'single' | 'multi' | 'all_pairs' | 'ksp'
+    k: int = 3,                                     # for mode='ksp'
+    # graph treatment
+    weight_attr: Optional[str] = None,              # edge weight (None => unweighted)
+    as_undirected: bool = False,                    # compute on undirected copy
+    largest_component: bool = False,                # restrict to largest (weak for DiGraph)
+    # algorithm & knobs
+    method: str = "dijkstra",                       # 'dijkstra' | 'bellman-ford' | 'astar'
+    cutoff: Optional[float] = None,                 # max path length (Dijkstra/BF)
+    astar_pos_attrs: Tuple[str,str] = ("x","y"),    # node attrs to read for A* (or a 'pos' tuple attr)
+    astar_pos_attr_name: Optional[str] = None,      # if you store positions as a single 'pos'=(x,y)
+    # output controls
+    return_edge_attrs: Optional[List[str]] = None,  # include these edge attrs per path step
+    max_results_per_pair: Optional[int] = None      # hard cap per (source,target) in 'ksp'
+) -> Dict[str, Any]:
+    """
+    Compute shortest (or K-shortest) paths on a saved NetworkX graph.
+
+    modes:
+      - 'single': one source, one target (targets must be a single node)
+      - 'multi' : many sources and/or many targets (cartesian product)
+      - 'all_pairs': ignore sources/targets and compute for all node pairs (heavy)
+      - 'ksp'   : K-shortest simple paths (Yen; uses edge weights if given)
+
+    method:
+      - 'dijkstra' (default): supports weight_attr & cutoff
+      - 'bellman-ford': allows negative weights (no negative cycles)
+      - 'astar': needs node coordinates; uses Euclidean heuristic
+    """
+    try:
+        # ---- load graph ----
+        if not os.path.exists(input_path):
+            return {"status":"error","message":f"Input graph not found: {input_path}"}
+        ext = os.path.splitext(input_path)[1].lower()
+        if ext == ".graphml":
+            G = nx.read_graphml(input_path)
+        elif ext == ".gexf":
+            G = nx.read_gexf(input_path)
+        elif ext in {".gpickle",".pickle"}:
+            G = nx.read_gpickle(input_path)
+        else:
+            return {"status":"error","message":f"Unsupported input format: {ext}"}
+
+        if as_undirected:
+            G = G.to_undirected()
+
+        # restrict to largest component if requested
+        if largest_component:
+            comps = (nx.weakly_connected_components(G) if G.is_directed() else nx.connected_components(G))
+            comps = list(comps)
+            if comps:
+                G = G.subgraph(max(comps, key=len)).copy()
+
+        # normalize sources/targets lists
+        if isinstance(sources, (list, tuple, set)):
+            src_list = list(sources)
+        else:
+            src_list = [sources]
+
+        if targets is None:
+            tgt_list = None  # means: all nodes (except src in 'single' if needed)
+        else:
+            if isinstance(targets, (list, tuple, set)):
+                tgt_list = list(targets)
+            else:
+                tgt_list = [targets]
+
+        # node existence check
+        missing = [n for n in src_list if n not in G]
+        if tgt_list is not None:
+            missing += [n for n in tgt_list if n not in G]
+        if missing:
+            return {"status":"error","message":f"Unknown node(s): {sorted(set(missing))}"}
+
+        # A* heuristic
+        def _euclid(u, v):
+            # try 'pos' attr first (tuple), else separate x,y attrs
+            def get_xy(n):
+                if astar_pos_attr_name and astar_pos_attr_name in G.nodes[n]:
+                    p = G.nodes[n][astar_pos_attr_name]
+                    if isinstance(p, (tuple, list)) and len(p)==2:
+                        return float(p[0]), float(p[1])
+                xk, yk = astar_pos_attrs
+                if xk in G.nodes[n] and yk in G.nodes[n]:
+                    return float(G.nodes[n][xk]), float(G.nodes[n][yk])
+                raise KeyError("coords missing")
+            try:
+                x1,y1 = get_xy(u); x2,y2 = get_xy(v)
+                return math.hypot(x1-x2, y1-y2)
+            except Exception:
+                # fallback: heuristic=0 (degrades to Dijkstra)
+                return 0.0
+
+        # helpers to compute one shortest path
+        def _one_path(s, t):
+            if method == "bellman-ford":
+                length, path = nx.single_source_bellman_ford(G, s, target=t, weight=weight_attr)
+            elif method == "astar":
+                path = nx.astar_path(G, s, t, heuristic=_euclid, weight=weight_attr)
+                length = nx.path_weight(G, path, weight=weight_attr) if weight_attr else len(path)-1
+            else:  # dijkstra
+                length, path = nx.single_source_dijkstra(G, s, target=t, weight=weight_attr, cutoff=cutoff)
+            return float(length), list(path)
+
+        # decorate a path with edge attributes if requested
+        def _decorate(path):
+            if not return_edge_attrs:
+                return {"nodes": path}
+            steps = []
+            for u, v in zip(path[:-1], path[1:]):
+                data = G.get_edge_data(u, v)
+                # for multigraphs, pick the first edge's attrs
+                if isinstance(data, dict) and any(isinstance(k, (int,str)) for k in data.keys()) and "weight" not in data:
+                    # MultiGraph edge dict: {key: {attrs}}
+                    data = next(iter(data.values()))
+                step = {"u": u, "v": v}
+                for a in return_edge_attrs:
+                    step[a] = data.get(a) if isinstance(data, dict) else None
+                steps.append(step)
+            return {"nodes": path, "edges": steps}
+
+        results: Dict[str, Any] = {}
+
+        # ---- modes ----
+        if mode == "single":
+            if tgt_list is None or len(tgt_list) != 1 or len(src_list) != 1:
+                return {"status":"error","message":"For mode='single', provide exactly one source and one target."}
+            s, t = src_list[0], tgt_list[0]
+            try:
+                length, path = _one_path(s, t)
+                results[f"{s}->{t}"] = {"length": length, "path": _decorate(path)}
+            except nx.NetworkXNoPath:
+                results[f"{s}->{t}"] = {"length": float("inf"), "path": None}
+
+        elif mode == "multi":
+            # all pairs from sources × targets (or × all nodes if targets=None)
+            pairs: Iterable[Tuple[Any,Any]]
+            if tgt_list is None:
+                all_nodes = list(G.nodes())
+                pairs = [(s, t) for s in src_list for t in all_nodes if t != s]
+            else:
+                pairs = [(s, t) for s in src_list for t in tgt_list if t != s]
+            for s, t in pairs:
+                try:
+                    length, path = _one_path(s, t)
+                    results[f"{s}->{t}"] = {"length": length, "path": _decorate(path)}
+                except nx.NetworkXNoPath:
+                    results[f"{s}->{t}"] = {"length": float("inf"), "path": None}
+
+        elif mode == "all_pairs":
+            # heavy; ignore provided sources/targets
+            # choose algorithm by method
+            if method == "bellman-ford":
+                all_lengths = dict(nx.all_pairs_bellman_ford_path_length(G, weight=weight_attr))
+                all_paths   = dict(nx.all_pairs_bellman_ford_path(G, weight=weight_attr))
+            else:  # dijkstra default
+                all_lengths = dict(nx.all_pairs_dijkstra_path_length(G, weight=weight_attr))
+                all_paths   = dict(nx.all_pairs_dijkstra_path(G, weight=weight_attr))
+            for s, ld in all_lengths.items():
+                for t, L in ld.items():
+                    if s == t: 
+                        continue
+                    path = all_paths.get(s, {}).get(t, None)
+                    results.setdefault(str(s), {})[str(t)] = {
+                        "length": float(L),
+                        "path": _decorate(path) if path else None
+                    }
+
+        elif mode == "ksp":
+            # K-shortest simple paths via Yen (networkx.shortest_simple_paths)
+            if tgt_list is None or len(tgt_list) == 0:
+                return {"status":"error","message":"For mode='ksp', provide at least one target."}
+            max_per_pair = max_results_per_pair or k
+            for s in src_list:
+                for t in tgt_list:
+                    if s == t: 
+                        continue
+                    try:
+                        gen = nx.shortest_simple_paths(G, s, t, weight=weight_attr)
+                        paths = []
+                        for i, path in enumerate(gen):
+                            if i >= k: break
+                            L = nx.path_weight(G, path, weight=weight_attr) if weight_attr else (len(path)-1)
+                            paths.append({"rank": i+1, "length": float(L), "path": _decorate(path)})
+                            if max_per_pair and len(paths) >= max_per_pair:
+                                break
+                        results[f"{s}->{t}"] = paths
+                    except nx.NetworkXNoPath:
+                        results[f"{s}->{t}"] = []
+        else:
+            return {"status":"error","message":f"Unknown mode: {mode}"}
+
+        summary = {
+            "n_nodes": int(G.number_of_nodes()),
+            "n_edges": int(G.number_of_edges()),
+            "is_directed": bool(G.is_directed()),
+            "mode": mode,
+            "method": method,
+            "weight_attr": weight_attr,
+        }
+        if mode == "ksp":
+            summary.update({"k": int(k)})
+
+        return {"status":"success","message":"Paths computed successfully","result":{"summary":summary,"paths":results}}
+
+    except Exception as e:
+        return {"status":"error","message":f"Failed to compute paths: {str(e)}"}
+
+
+
+
+@gis_mcp.tool()
+def ox_download_graph(
+    # --- area of interest (provide exactly ONE of these) ---
+    place: Optional[Union[str, List[str]]] = None,             # e.g. "Tehran, Iran" or ["Toronto, Ontario, Canada"]
+    bbox: Optional[Tuple[float, float, float, float]] = None,  # (north, south, east, west) in lat/lon
+    polygon_path: Optional[str] = None,                        # path to polygon file (shp/gpkg/geojson); first feature used
+    point: Optional[Tuple[float, float]] = None,               # (lat, lon)
+    dist: Optional[float] = None,                              # meters (used with point)
+    # --- graph build options ---
+    network_type: str = "drive",                               # 'drive','walk','bike','all','all_private'
+    custom_filter: Optional[str] = None,                       # Overpass filter, e.g. '["highway"~"motorway|trunk"]'
+    simplify: bool = True,
+    retain_all: bool = False,
+    truncate_by_edge: bool = True,                              # replaces old 'clean_periphery'
+    to_undirected: bool = False,
+    # --- enrichment ---
+    add_speeds: bool = True,                                   # osmnx.add_edge_speeds()
+    add_travel_time: bool = True,                              # osmnx.add_edge_travel_times()
+    project_to_utm: bool = True,                               # project_graph to local UTM
+    # --- saving ---
+    save_graphml_path: Optional[str] = None,                   # e.g. "out/tehran_drive.graphml"
+    save_gpkg_path: Optional[str] = None,                      # e.g. "out/tehran_drive.gpkg" (nodes+edges layers)
+    # --- osmnx settings ---
+    use_cache: bool = True,
+    timeout: int = 180,
+    log_console: bool = False
+) -> Dict[str, Any]:
+    """
+    Download an OpenStreetMap network with OSMnx.
+
+    Area of interest: pass exactly ONE of (place | bbox | polygon_path | (point & dist)).
+
+    Returns a JSON summary with stats and tiny previews. Saves GraphML/GeoPackage if paths provided.
+    """
+    try:
+        import osmnx as ox
+        from shapely.geometry import Polygon, MultiPolygon
+
+        # OSMnx settings
+        ox.settings.use_cache = bool(use_cache)
+        ox.settings.log_console = bool(log_console)
+        ox.settings.timeout = int(timeout)
+
+        # Validate AOI selection
+        aoi_count = sum([
+            1 if place is not None else 0,
+            1 if bbox is not None else 0,
+            1 if polygon_path is not None else 0,
+            1 if (point is not None and dist is not None) else 0
+        ])
+        if aoi_count != 1:
+            return {"status":"error","message":"Provide exactly ONE area: place OR bbox OR polygon_path OR (point & dist)."}
+
+        # Build graph kwargs
+        graph_kwargs = dict(custom_filter=custom_filter) if custom_filter else dict(network_type=network_type)
+
+        # Build graph
+        if place is not None:
+            G = ox.graph_from_place(
+                place,
+                simplify=simplify,
+                retain_all=retain_all,
+                truncate_by_edge=truncate_by_edge,
+                **graph_kwargs
+            )
+        elif bbox is not None:
+            north, south, east, west = bbox
+            G = ox.graph_from_bbox(
+                north, south, east, west,
+                simplify=simplify,
+                retain_all=retain_all,
+                truncate_by_edge=truncate_by_edge,
+                **graph_kwargs
+            )
+        elif polygon_path is not None:
+            if not os.path.exists(polygon_path):
+                return {"status":"error","message":f"Polygon file not found: {polygon_path}"}
+            gpoly = gpd.read_file(polygon_path)
+            if gpoly.empty:
+                return {"status":"error","message":"Polygon file has no features."}
+            geom = gpoly.geometry.iloc[0]
+            if geom is None or geom.is_empty:
+                return {"status":"error","message":"First polygon geometry is empty."}
+            if geom.geom_type not in {"Polygon","MultiPolygon"}:
+                geom = geom.convex_hull
+            G = ox.graph_from_polygon(
+                geom,
+                simplify=simplify,
+                retain_all=retain_all,
+                truncate_by_edge=truncate_by_edge,
+                **graph_kwargs
+            )
+        else:
+            # point + dist (meters)
+            lat, lon = point
+            G = ox.graph_from_point(
+                (lat, lon),
+                dist=float(dist),
+                simplify=simplify,
+                retain_all=retain_all,
+                truncate_by_edge=truncate_by_edge,
+                **graph_kwargs
+            )
+
+        # Undirected?
+        if to_undirected:
+            G = ox.utils_graph.get_undirected(G)
+
+        # Enrichment
+        if add_speeds:
+            G = ox.add_edge_speeds(G)          # adds 'speed_kph' (lookup if missing)
+        if add_travel_time:
+            G = ox.add_edge_travel_times(G)    # adds 'travel_time' (seconds)
+
+        # Project to UTM (optional)
+        if project_to_utm:
+            G = ox.project_graph(G)
+
+        # Convert to GeoDataFrames & CRS
+        gnodes, gedges = ox.graph_to_gdfs(G, nodes=True, edges=True, node_geometry=True, fill_edge_geometry=True)
+        projected_crs = str(gnodes.crs) if gnodes.crs else None
+
+        # Basic stats
+        n_nodes = G.number_of_nodes()
+        n_edges = G.number_of_edges()
+        is_dir = G.is_directed()
+        density = float(nx.density(G)) if n_nodes else 0.0
+
+        # Extent & area (if projected)
+        if gnodes.crs and gnodes.crs.is_projected:
+            minx, miny, maxx, maxy = gnodes.total_bounds
+            extent = {"minx":float(minx),"miny":float(miny),"maxx":float(maxx),"maxy":float(maxy)}
+            area_km2 = float(((maxx-minx)*(maxy-miny))/1e6)
+        else:
+            tb = gnodes.to_crs(4326).total_bounds  # (minx,miny,maxx,maxy)
+            minx, miny, maxx, maxy = tb
+            extent = {"minlon":float(minx),"minlat":float(miny),"maxlon":float(maxx),"maxlat":float(maxy)}
+            area_km2 = None
+
+        # Previews
+        node_preview_df = gnodes.reset_index().head(5)
+        id_col = node_preview_df.columns[0]  # index name after reset_index (osmid usually)
+        node_preview = node_preview_df[[id_col, "y", "x"]].rename(columns={id_col: "id"}).to_dict(orient="records")
+
+        edge_cols = [c for c in ["u","v","highway","length","speed_kph","travel_time","name"] if c in gedges.columns]
+        # always include u,v first if present
+        keep = []
+        if "u" in gedges.columns: keep.append("u")
+        if "v" in gedges.columns: keep.append("v")
+        keep += [c for c in ["highway","length","speed_kph","travel_time","name"] if c in gedges.columns]
+        edge_preview = gedges.head(5)[keep].to_dict(orient="records")
+
+        # Save outputs
+        saved = {}
+        if save_graphml_path:
+            try:
+                if os.path.dirname(save_graphml_path):
+                    os.makedirs(os.path.dirname(save_graphml_path), exist_ok=True)
+                ox.save_graphml(G, save_graphml_path)
+                saved["graphml"] = save_graphml_path
+            except Exception as e:
+                return {"status":"error","message":f"Failed to save GraphML: {e}"}
+
+        if save_gpkg_path:
+            try:
+                if os.path.dirname(save_gpkg_path):
+                    os.makedirs(os.path.dirname(save_gpkg_path), exist_ok=True)
+                gnodes.to_file(save_gpkg_path, layer="nodes", driver="GPKG")
+                gedges.to_file(save_gpkg_path, layer="edges", driver="GPKG")
+                saved["gpkg"] = save_gpkg_path
+            except Exception as e:
+                return {"status":"error","message":f"Failed to save GeoPackage: {e}"}
+
+        result = {
+            "n_nodes": int(n_nodes),
+            "n_edges": int(n_edges),
+            "is_directed": bool(is_dir),
+            "density": density,
+            "network_type": network_type if not custom_filter else f"custom:{custom_filter}",
+            "projected_crs": projected_crs,
+            "extent": extent,
+            "area_km2_box": area_km2,
+            "node_preview": node_preview,
+            "edge_preview": edge_preview,
+            "saved": saved
+        }
+        return {"status":"success","message":"OSM graph downloaded successfully","result":result}
+
+    except Exception as e:
+        return {"status":"error","message":f"Failed to download OSM graph: {str(e)}"}
+
+
+
+
+
+@gis_mcp.tool()
+def nx_visualize_graph(
+    input_path: str,
+    # Outputs
+    output_image_path: Optional[str] = None,     # e.g. "out/graph.png" or ".svg"
+    output_html_path: Optional[str] = None,      # e.g. "out/graph.html"
+    html_engine: str = "pyvis",                  # 'pyvis' | 'folium'
+    # Layout / positions (for image & pyvis)
+    use_node_xy: bool = True,                    # use node attrs ('x','y') or 'pos' if present
+    layout: str = "spring",                      # 'spring'|'kamada_kawai'|'planar'|'circular'|'shell'
+    # Styling (static image)
+    figsize: Tuple[int,int] = (12, 12),
+    dpi: int = 150,
+    bgcolor: str = "white",
+    node_attr_for_size: Optional[str] = None,    # scale node size by this attribute (numeric only)
+    node_size: int = 30,                         # base node size if not scaled
+    node_size_minmax: Tuple[int,int] = (8, 60),
+    node_color: str = "#1f78b4",
+    node_attr_for_color: Optional[str] = None,   # color nodes by categorical attribute
+    edge_attr_for_width: Optional[str] = None,   # scale edge width by attribute (e.g., 'weight','length')
+    edge_width: float = 0.8,
+    edge_width_minmax: Tuple[float,float] = (0.4, 4.0),
+    edge_color: str = "#444444",
+    # Map/OSM-specific (for folium)
+    folium_tiles: str = "cartodbpositron",
+    folium_edge_color: str = "blue",
+    folium_edge_opacity: float = 0.6,
+    # Filtering
+    largest_component: bool = False,
+    as_undirected_for_layout: bool = True
+) -> Dict[str, Any]:
+    """
+    Visualize a saved NetworkX graph to PNG/SVG (matplotlib) or HTML (PyVis/Folium).
+
+    - Uses node positions if available: ('x','y') or 'pos'=(x,y); else computes a layout.
+    - Folium mode is best for OSMnx graphs (needs osmnx installed).
+    - PyVis/Matplotlib show node/edge attributes (PyVis via hover titles).
+    """
+    try:
+        # -------- Load graph --------
+        if not os.path.exists(input_path):
+            return {"status":"error","message":f"Input graph not found: {input_path}"}
+        ext = os.path.splitext(input_path)[1].lower()
+        if ext == ".graphml":
+            G = nx.read_graphml(input_path)
+        elif ext == ".gexf":
+            G = nx.read_gexf(input_path)
+        elif ext in {".gpickle",".pickle"}:
+            G = nx.read_gpickle(input_path)
+        else:
+            return {"status":"error","message":f"Unsupported input format: {ext}"}
+
+        # Keep only largest component (optional)
+        if largest_component:
+            if G.is_directed():
+                comps = list(nx.weakly_connected_components(G))
+            else:
+                comps = list(nx.connected_components(G))
+            if comps:
+                G = G.subgraph(max(comps, key=len)).copy()
+
+        # For layout only, undirected often looks nicer
+        G_for_layout = G.to_undirected() if (as_undirected_for_layout and G.is_directed()) else G
+
+        # -------- Node positions --------
+        pos = None
+        if use_node_xy and len(G) > 0:
+            has_xy = all(("x" in G.nodes[n] and "y" in G.nodes[n]) for n in G.nodes)
+            if has_xy:
+                pos = {n: (float(G.nodes[n]["x"]), float(G.nodes[n]["y"])) for n in G.nodes}
+            elif all(("pos" in G.nodes[n] and isinstance(G.nodes[n]["pos"], (tuple,list)) and len(G.nodes[n]["pos"])==2) for n in G.nodes):
+                pos = {n: (float(G.nodes[n]["pos"][0]), float(G.nodes[n]["pos"][1])) for n in G.nodes}
+        if pos is None:
+            if layout == "spring":
+                pos = nx.spring_layout(G_for_layout, seed=42)
+            elif layout == "kamada_kawai":
+                pos = nx.kamada_kawai_layout(G_for_layout)
+            elif layout == "planar":
+                try:
+                    pos = nx.planar_layout(G_for_layout)
+                except nx.NetworkXException:
+                    pos = nx.spring_layout(G_for_layout, seed=42)
+            elif layout == "circular":
+                pos = nx.circular_layout(G_for_layout)
+            elif layout == "shell":
+                pos = nx.shell_layout(G_for_layout)
+            else:
+                pos = nx.spring_layout(G_for_layout, seed=42)
+
+        # -------- Helpers: numeric handling & scaling --------
+        def _to_float_or_none(x):
+            if isinstance(x, Number):
+                return float(x)
+            try:
+                return float(x)
+            except Exception:
+                return None
+
+        def _scale_map(values_dict, out_min, out_max):
+            numeric = {k: _to_float_or_none(v) for k, v in values_dict.items()}
+            numeric = {k: v for k, v in numeric.items() if v is not None}
+            if not numeric:
+                return {}
+            lo, hi = min(numeric.values()), max(numeric.values())
+            if hi == lo:
+                mid = (out_min + out_max) / 2.0
+                return {k: mid for k in numeric.keys()}
+            rng = hi - lo
+            return {k: out_min + (v - lo) * (out_max - out_min) / rng for k, v in numeric.items()}
+
+        # -------- Node sizes/colors --------
+        if node_attr_for_size:
+            raw = {n: G.nodes[n].get(node_attr_for_size, None) for n in G.nodes}
+            scaled = _scale_map(raw, node_size_minmax[0], node_size_minmax[1])
+            node_sizes = [scaled.get(n, node_size) for n in G.nodes]
+        else:
+            node_sizes = [node_size] * G.number_of_nodes()
+
+        node_colors = None
+        if node_attr_for_color:
+            cats = {}
+            palette = [
+                "#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd",
+                "#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf"
+            ]
+            def cat_color(x):
+                if x not in cats:
+                    cats[x] = palette[len(cats) % len(palette)]
+                return cats[x]
+            node_colors = [cat_color(G.nodes[n].get(node_attr_for_color, None)) for n in G.nodes]
+
+        # -------- Edge list & widths (robust for MultiGraph) --------
+        is_multi = G.is_multigraph()
+        if is_multi:
+            edge_list = list(G.edges(keys=True))  # (u,v,k)
+            if edge_attr_for_width:
+                raw = {(u, v, k): G.edges[u, v, k].get(edge_attr_for_width, None) for (u, v, k) in edge_list}
+                scaled = _scale_map(raw, edge_width_minmax[0], edge_width_minmax[1])
+                edge_widths = [scaled.get((u, v, k), edge_width) for (u, v, k) in edge_list]
+            else:
+                edge_widths = [edge_width] * len(edge_list)
+        else:
+            edge_list = list(G.edges())  # (u,v)
+            if edge_attr_for_width:
+                raw = {(u, v): G.edges[u, v].get(edge_attr_for_width, None) for (u, v) in edge_list}
+                scaled = _scale_map(raw, edge_width_minmax[0], edge_width_minmax[1])
+                edge_widths = [scaled.get((u, v), edge_width) for (u, v) in edge_list]
+            else:
+                edge_widths = [edge_width] * len(edge_list)
+
+        saved: Dict[str, str] = {}
+
+        # -------- Static image (matplotlib) --------
+        if output_image_path:
+            import matplotlib.pyplot as plt
+            plt.figure(figsize=figsize, dpi=dpi)
+            ax = plt.gca()
+            ax.set_facecolor(bgcolor)
+            ax.axis('off')
+            nx.draw_networkx_edges(G, pos, edgelist=edge_list, width=edge_widths, edge_color=edge_color, alpha=0.9, ax=ax)
+            nx.draw_networkx_nodes(
+                G, pos,
+                node_size=node_sizes,
+                node_color=(node_colors if node_colors is not None else node_color),
+                linewidths=0.0, ax=ax
+            )
+            if os.path.dirname(output_image_path):
+                os.makedirs(os.path.dirname(output_image_path), exist_ok=True)
+            plt.tight_layout()
+            plt.savefig(output_image_path, facecolor=bgcolor, bbox_inches="tight")
+            plt.close()
+            saved["image"] = output_image_path
+
+        # -------- Interactive HTML (PyVis or Folium) --------
+        if output_html_path:
+            if os.path.dirname(output_html_path):
+                os.makedirs(os.path.dirname(output_html_path), exist_ok=True)
+
+            if html_engine.lower() == "folium":
+                # Best for OSMnx graphs
+                try:
+                    import osmnx as ox
+                except ImportError:
+                    return {"status":"error","message":"html_engine='folium' requires osmnx installed."}
+                try:
+                    m = ox.plot_graph_folium(
+                        G, tiles=folium_tiles,
+                        color=folium_edge_color, opacity=folium_edge_opacity, weight=3
+                    )
+                    m.save(output_html_path)
+                    saved["html"] = output_html_path
+                except Exception as e:
+                    return {"status":"error","message":f"Failed to export folium HTML: {e}"}
+            else:
+                # PyVis (write file instead of .show() to avoid headless issues)
+                try:
+                    from pyvis.network import Network
+                except ImportError:
+                    return {"status":"error","message":"html_engine='pyvis' requires 'pyvis' (pip install pyvis)."}
+
+                net = Network(height="800px", width="100%", directed=G.is_directed(),
+                              bgcolor=bgcolor, font_color="#333", notebook=False)
+                net.barnes_hut()
+
+                # nodes
+                nodes_list = list(G.nodes)
+                for idx, (n, attrs) in enumerate(G.nodes(data=True)):
+                    title = "<br>".join([f"{k}: {v}" for k, v in attrs.items()])
+                    size_val = node_sizes[idx]
+                    color_val = (node_colors[idx] if node_colors is not None else node_color)
+                    if n in pos:
+                        x_val, y_val = pos[n]
+                        x_val = _to_float_or_none(x_val); y_val = _to_float_or_none(y_val)
+                        if x_val is not None and y_val is not None:
+                            net.add_node(n, label=str(n), title=title, x=x_val, y=-y_val,
+                                         physics=False, size=float(size_val), color=color_val)
+                            continue
+                    net.add_node(n, label=str(n), title=title, size=float(size_val), color=color_val)
+
+                # edges
+                if is_multi:
+                    for (u, v, k), w in zip(edge_list, edge_widths):
+                        d = G.get_edge_data(u, v, k) or {}
+                        title = "<br>".join([f"{kk}: {vv}" for kk, vv in d.items()])
+                        net.add_edge(u, v, title=title, value=float(w))
+                else:
+                    for (u, v), w in zip(edge_list, edge_widths):
+                        d = G.get_edge_data(u, v) or {}
+                        title = "<br>".join([f"{kk}: {vv}" for kk, vv in d.items()])
+                        net.add_edge(u, v, title=title, value=float(w))
+
+                # robust HTML write
+                if hasattr(net, "write_html"):
+                    net.write_html(output_html_path, notebook=False, local=False)  # use CDN
+                else:
+                    net.save_graph(output_html_path)
+                saved["html"] = output_html_path
+
+        # -------- Summary --------
+        return {
+            "status":"success",
+            "message":"Graph visualized successfully",
+            "result":{
+                "n_nodes": int(G.number_of_nodes()),
+                "n_edges": int(G.number_of_edges()),
+                "is_directed": bool(G.is_directed()),
+                "saved": saved
+            }
+        }
+
+    except Exception as e:
+        return {"status":"error","message":f"Failed to visualize graph: {str(e)}"}
