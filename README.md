@@ -811,3 +811,8 @@ Made with [contrib.rocks](https://contrib.rocks).
     <img src="https://mcp.so/logo.png" alt="MCP.so Badge" width="150"/>
   </a>
 </div>
+
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/mahdin75-gis-mcp).
+
