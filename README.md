@@ -1,5 +1,7 @@
 # GIS MCP Server
 
+[![MCP Toplist](https://mcptoplist.com/badge/mcp.so%2Fgis-mcp-server%2Fmahdin75.svg)](https://mcptoplist.com/server/mcp.so%2Fgis-mcp-server%2Fmahdin75)
+
 <div align="center">
 
 | Category                     | Badges                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
