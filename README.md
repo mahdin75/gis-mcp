@@ -796,7 +796,7 @@ Made with [contrib.rocks](https://contrib.rocks).
 ## 🏆 Badges
 
 <div align="center">
-
+[![MCP Toplist](https://mcptoplist.com/badge/mcp.so%2Fgis-mcp-server%2Fmahdin75.svg)](https://mcptoplist.com/server/mcp.so%2Fgis-mcp-server%2Fmahdin75)
 [![PyPI version](https://img.shields.io/pypi/v/gis-mcp.svg)](https://pypi.org/project/gis-mcp/)
 [![PyPI downloads](https://img.shields.io/pypi/dm/gis-mcp.svg)](https://pypi.org/project/gis-mcp/)
 <br/></br>
@@ -812,4 +812,6 @@ Made with [contrib.rocks](https://contrib.rocks).
   <a href="https://mcp.so/server/gis-mcp-server/mahdin75">
     <img src="https://mcp.so/logo.png" alt="MCP.so Badge" width="150"/>
   </a>
+
+
 </div>
