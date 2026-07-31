@@ -26,6 +26,8 @@
 
 A Model Context Protocol (MCP) server implementation that connects Large Language Models (LLMs) to GIS operations using GIS libraries, enabling AI assistants to perform geospatial operations and transformations.
 
+How it fits next to the LLM and other tools, plus internal components: **[Architecture](https://gis-mcp.com/architecture/)**.
+
 🌐 **Website:** [gis-mcp.com](https://gis-mcp.com)
 
 > Current version is 0.15.0 (Beta):

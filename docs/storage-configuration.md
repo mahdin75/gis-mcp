@@ -99,7 +99,19 @@ $env:GIS_MCP_STORAGE_PATH="C:\custom\path\to\storage"
 
 ## Google Cloud Storage (GCP)
 
-Use this backend when you want the server to read and write files in a **Google Cloud Storage** bucket.
+Use this backend when you want the server to read and write files in a **Google Cloud Storage** bucket instead of (or in addition to caching on) a local disk path.
+
+### Why use a GCS bucket?
+
+Local storage is fine for a single machine or a Docker volume on one host. A GCS bucket helps when geospatial files need to live in shared, durable cloud storage:
+
+- **Shared access** — several agents, servers, or teammates can use the same layers and outputs without copying files between machines
+- **Durable object storage** — rasters, shapefiles, and downloads survive container restarts and host replacement (no reliance on ephemeral container disks)
+- **Fits cloud deployments** — natural choice when GIS MCP runs on GCE, GKE, Cloud Run, or other GCP workloads next to your data lake / pipeline buckets
+- **Scalable data volume** — large imagery and climate downloads are not limited by a single VM disk; you pay for objects you store
+- **Clear separation** — keep tool working files under a bucket prefix (e.g. `gis-data/`) while apps and pipelines read/write the same objects
+
+**Typical use cases:** multi-user or multi-agent GIS workflows; HTTP-mode servers in the cloud that upload/download via `/storage/*`; keeping satellite, climate, or movement downloads in a project bucket; handing analysis outputs to downstream GCP jobs (BigQuery loaders, Dataflow, another service).
 
 ### Install
 
