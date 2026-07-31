@@ -9,8 +9,9 @@ import logging
 import argparse
 import sys
 import os
+import json
 from .mcp import gis_mcp
-from .storage_config import initialize_storage
+from .storage_config import initialize_storage, parse_storage_config_arg, get_storage_adapter
 try:
     from .data import administrative_boundaries
 except ImportError as e:
@@ -92,8 +93,17 @@ def main():
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="GIS MCP Server")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-    parser.add_argument("--storage-path", type=str, default=None, 
+    parser.add_argument("--storage-path", type=str, default=None,
                        help="Path to storage folder for file operations (default: ~/.gis_mcp/data/)")
+    parser.add_argument(
+        "--storage-config",
+        type=str,
+        default=None,
+        help=(
+            'JSON object or path to JSON file configuring storage backend, e.g. '
+            '\'{"provider":"gcp","bucket":"my-bucket","prefix":"gis-data/"}\''
+        ),
+    )
     args = parser.parse_args()
     
     # Set logging level
@@ -101,11 +111,35 @@ def main():
         logging.getLogger().setLevel(logging.DEBUG)
         logger.debug("Debug logging enabled")
     
-    # Initialize storage configuration
-    # Check environment variable first, then command-line argument
-    storage_config = os.getenv('GIS_MCP_STORAGE_PATH', args.storage_path)
-    storage_path = initialize_storage(storage_config)
-    logger.info(f"Storage path initialized: {storage_path}")
+    # Initialize storage configuration.
+    # Priority:
+    #   1. --storage-config
+    #   2. GIS_MCP_STORAGE_CONFIG / GIS_MCP_STORAGE_PROVIDER env
+    #   3. GIS_MCP_STORAGE_PATH env (overrides --storage-path)
+    #   4. --storage-path
+    #   5. default ~/.gis_mcp/data/
+    try:
+        cli_storage_config = parse_storage_config_arg(args.storage_config)
+    except (ValueError, json.JSONDecodeError) as e:
+        logger.error(f"Invalid --storage-config: {e}")
+        sys.exit(1)
+
+    if cli_storage_config is not None:
+        storage_config = cli_storage_config
+    elif os.getenv("GIS_MCP_STORAGE_CONFIG") or os.getenv("GIS_MCP_STORAGE_PROVIDER"):
+        storage_config = None  # initialize_storage reads structured env config
+    else:
+        storage_config = os.getenv("GIS_MCP_STORAGE_PATH", args.storage_path)
+
+    try:
+        storage_path = initialize_storage(storage_config)
+    except (ValueError, ImportError, FileNotFoundError) as e:
+        logger.error(f"Failed to initialize storage: {e}")
+        sys.exit(1)
+
+    adapter = get_storage_adapter()
+    logger.info(f"Storage initialized ({adapter.describe()})")
+    logger.info(f"Local storage path: {storage_path}")
     
     # Get transport configuration from environment variables
     transport = os.getenv('GIS_MCP_TRANSPORT', 'stdio').lower()

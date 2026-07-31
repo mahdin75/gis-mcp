@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gis-mcp"
-version = "0.14.0"
+version = "0.15.0"
 description = "A Model Context Protocol (MCP) server implementation for GIS operations using GIS libraries"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -86,6 +86,10 @@ visualize = [
     "pydeck>=0.9.0",
 ]
 
+gcp = [
+    "google-cloud-storage>=2.14.0",
+]
+
 test = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
@@ -104,6 +108,7 @@ all = [
     "requests>=2.31",
     "folium>=0.15.0",
     "pydeck>=0.9.0",
+    "google-cloud-storage>=2.14.0",
 ]
 
 [project.scripts]

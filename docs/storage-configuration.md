@@ -1,10 +1,17 @@
 ## Storage Configuration
 
-The GIS MCP Server uses a configurable storage directory for file operations (reading, writing, and downloading data). By default, files are stored in `~/.gis_mcp/data/`.
+The GIS MCP Server stores files used for reading, writing, and downloading geospatial data. Two storage backends are supported:
 
-### Specifying a Custom Storage Folder
+1. **Local filesystem** — default; files under `~/.gis_mcp/data/` (or a custom path)
+2. **Google Cloud Storage (GCP)** — use when you want files in a GCS bucket
 
-You can specify a custom storage folder using either:
+---
+
+## Local filesystem storage
+
+This is the default. Configure it with `--storage-path` or `GIS_MCP_STORAGE_PATH`.
+
+### Custom storage folder
 
 1. **Command-line argument:**
 
@@ -26,33 +33,31 @@ $env:GIS_MCP_STORAGE_PATH="C:\path\to\your\storage"
 gis-mcp
 ```
 
-### Default Storage Location
+### Default storage location
 
-If no storage path is specified, the server uses the default location:
+If no path is set, the server uses:
 
-- **Default path:** `~/.gis_mcp/data/`
+- **Default:** `~/.gis_mcp/data/`
   - Linux/Mac: `/home/username/.gis_mcp/data/`
   - Windows: `C:\Users\username\.gis_mcp\data\`
 
-The storage directory is automatically created if it doesn't exist.
+The directory is created automatically if it does not exist.
 
-### How Storage Works
+### How local storage works
 
-- **File writes:** When you save files using tools like `write_file_gpd`, `write_raster`, or `save_results`, relative paths are resolved relative to the storage directory. Absolute paths are used as-is.
-- **Data downloads:** Downloaded data (satellite imagery, climate data, movement networks, etc.) is saved to subdirectories within the storage folder:
-  - `movement_data/` - Street networks
-  - `land_products/` - Land cover data
-  - `satellite_imagery/` - Satellite imagery
-  - `ecology_data/` - Species occurrence data
-  - `climate_data/` - Climate datasets
-  - `administrative_boundaries/` - Administrative boundaries
-  - `outputs/` - General output files
+- **File writes:** Tools such as `write_file_gpd`, `write_raster`, or `save_results` resolve relative paths against the storage directory. Absolute paths are used as-is.
+- **Data downloads:** Downloaded data is saved under subdirectories of the storage folder:
+  - `movement_data/` — street networks
+  - `land_products/` — land cover
+  - `satellite_imagery/` — satellite imagery
+  - `ecology_data/` — species occurrences
+  - `climate_data/` — climate datasets
+  - `administrative_boundaries/` — administrative boundaries
+  - `outputs/` — general outputs
 
-### Example Configuration for MCP Clients
+### MCP client example (local)
 
-For Claude Desktop or Cursor IDE, you can specify the storage path in your configuration.
-
-**Claude Desktop / Cursor (JSON config):**
+**Claude Desktop / Cursor:**
 
 ```json
 {
@@ -65,7 +70,7 @@ For Claude Desktop or Cursor IDE, you can specify the storage path in your confi
 }
 ```
 
-On Windows, adjust the command path accordingly, for example:
+Windows:
 
 ```json
 {
@@ -78,29 +83,191 @@ On Windows, adjust the command path accordingly, for example:
 }
 ```
 
-### Environment Variable Configuration
-
-Instead of passing `--storage-path`, you can configure the environment variable in your shell profile:
+### Persist the local path in your shell
 
 ```bash
 export GIS_MCP_STORAGE_PATH=/custom/path/to/storage
 ```
 
-Or in PowerShell:
+PowerShell:
 
 ```powershell
 $env:GIS_MCP_STORAGE_PATH="C:\custom\path\to\storage"
 ```
 
-This ensures all future `gis-mcp` runs use the specified storage directory by default.
+---
 
-### Docker: Persistent Storage with Volumes
+## Google Cloud Storage (GCP)
 
-When running GIS MCP Server in Docker, data inside containers is ephemeral by default. To persist your storage data, you need to mount a Docker volume.
+Use this backend when you want the server to read and write files in a **Google Cloud Storage** bucket.
 
-#### Using Host Directory Mount
+### Install
 
-Mount a directory from your host machine to the container's storage path:
+```bash
+pip install gis-mcp[gcp]
+```
+
+(`gis-mcp[all]` also includes the GCP client.)
+
+### Configuration
+
+```json
+{
+  "provider": "gcp",
+  "bucket": "my-gis-bucket",
+  "prefix": "gis-data/",
+  "credentials": "/path/to/service-account.json"
+}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `provider` | yes | `"gcp"` |
+| `bucket` | yes | GCS bucket name |
+| `prefix` | no | Object prefix (e.g. `gis-data/`) |
+| `credentials` | no | Path to a service-account JSON key |
+| `project` | no | GCP project ID (often inferred from credentials) |
+| `local_cache` | no | Local cache for GIS tools (default: `~/.gis_mcp/gcp_cache/<bucket>/`) |
+
+**CLI:**
+
+```bash
+gis-mcp --storage-config '{"provider":"gcp","bucket":"my-gis-bucket","prefix":"gis-data/"}'
+```
+
+Or a JSON file:
+
+```bash
+gis-mcp --storage-config /path/to/storage.json
+```
+
+**Single env var:**
+
+```bash
+export GIS_MCP_STORAGE_CONFIG='{"provider":"gcp","bucket":"my-gis-bucket","prefix":"gis-data/"}'
+gis-mcp
+```
+
+**Separate env vars:**
+
+```bash
+export GIS_MCP_STORAGE_PROVIDER=gcp
+export GIS_MCP_GCS_BUCKET=my-gis-bucket
+export GIS_MCP_GCS_PREFIX=gis-data/
+export GIS_MCP_GCS_CREDENTIALS=/path/to/service-account.json   # if using a key file
+gis-mcp
+```
+
+### Credentials
+
+Resolved in this order:
+
+1. `credentials` in `storage_config` (or `GIS_MCP_GCS_CREDENTIALS`)
+2. `GOOGLE_APPLICATION_CREDENTIALS`
+3. [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials)
+
+The path must be readable by the **process that runs `gis-mcp`**:
+
+- **Linux host (no Docker):** path on the host
+- **Docker:** path **inside the container**, with the host key mounted there
+
+#### Linux — run on the host
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS=/home/ubuntu/secrets/gis-mcp-sa.json
+export GIS_MCP_STORAGE_PROVIDER=gcp
+export GIS_MCP_GCS_BUCKET=my-gis-bucket
+export GIS_MCP_GCS_PREFIX=gis-data/
+gis-mcp
+```
+
+Or:
+
+```bash
+gis-mcp --storage-config '{
+  "provider": "gcp",
+  "bucket": "my-gis-bucket",
+  "prefix": "gis-data/",
+  "credentials": "/home/ubuntu/secrets/gis-mcp-sa.json"
+}'
+```
+
+#### Linux — run in Docker
+
+Env vars use the **container** path; mount the host key into that path:
+
+```bash
+# Host:      /home/ubuntu/secrets/gis-mcp-sa.json
+# Container: /secrets/gis-mcp-sa.json
+docker run -p 9010:9010 \
+  -e GIS_MCP_STORAGE_PROVIDER=gcp \
+  -e GIS_MCP_GCS_BUCKET=my-gis-bucket \
+  -e GIS_MCP_GCS_PREFIX=gis-data/ \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/secrets/gis-mcp-sa.json \
+  -v /home/ubuntu/secrets/gis-mcp-sa.json:/secrets/gis-mcp-sa.json:ro \
+  gis-mcp
+```
+
+### Bucket access (IAM)
+
+The server **reads, writes, and lists** objects in the bucket:
+
+| Operation | Used for |
+|-----------|----------|
+| Write / upload | `POST /storage/upload` |
+| Read / download | `GET /storage/download` |
+| List | `GET /storage/list` |
+
+Recommended role on the bucket: **`roles/storage.objectUser`** (Storage Object User).
+
+Minimum custom permissions:
+
+- `storage.objects.create`
+- `storage.objects.get`
+- `storage.objects.list`
+
+```bash
+gcloud storage buckets add-iam-policy-binding gs://my-gis-bucket \
+  --member="serviceAccount:gis-mcp@PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/storage.objectUser"
+```
+
+Do not use read-only roles such as `roles/storage.objectViewer` if you need uploads.
+
+### How GCP storage works
+
+- Storage HTTP endpoints read and write objects in the configured bucket (under the prefix, if set).
+- GIS tools that need real filesystem paths use a local cache; files written through the storage API are mirrored into that cache.
+- Local path settings (`--storage-path` / `GIS_MCP_STORAGE_PATH`) continue to use the local filesystem backend.
+
+### MCP client example (GCP on Linux host)
+
+```json
+{
+  "mcpServers": {
+    "gis-mcp": {
+      "command": "/home/YourUsername/.venv/bin/gis-mcp",
+      "args": [
+        "--storage-config",
+        "{\"provider\":\"gcp\",\"bucket\":\"my-gis-bucket\",\"prefix\":\"gis-data/\"}"
+      ],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "/home/YourUsername/secrets/gis-mcp-sa.json"
+      }
+    }
+  }
+}
+```
+
+---
+
+## Docker
+
+In Docker (`Dockerfile` or `Dockerfile.local`), container filesystem data is ephemeral unless you mount a volume. Use a volume for **local** storage, or configure **GCP** when you want a GCS bucket.
+
+### Local storage with volumes
+
+#### Host directory mount
 
 ```bash
 # Linux/Mac
@@ -114,23 +281,17 @@ docker run -p 9010:9010 \
   gis-mcp
 ```
 
-#### Using Named Docker Volumes
-
-Named volumes are managed by Docker and provide better portability:
+#### Named volume
 
 ```bash
-# Create a named volume
 docker volume create gis-mcp-storage
 
-# Run container with the named volume
 docker run -p 9010:9010 \
   -v gis-mcp-storage:/app/.gis_mcp/data \
   gis-mcp
 ```
 
-#### Custom Storage Path in Docker
-
-You can use a custom storage path inside the container by combining volume mounting with environment variables:
+#### Custom path inside the container
 
 ```bash
 docker run -p 9010:9010 \
@@ -139,18 +300,45 @@ docker run -p 9010:9010 \
   gis-mcp
 ```
 
-Or with a named volume:
+Default path in the image is `/app/.gis_mcp/data/` unless you set `GIS_MCP_STORAGE_PATH`.
+
+### GCP storage in Docker
+
+Images built with `gis-mcp[all]` include the GCP client. Point credentials at a path **inside the container** and mount the host key:
 
 ```bash
 docker run -p 9010:9010 \
-  -v gis-mcp-storage:/container/storage \
-  -e GIS_MCP_STORAGE_PATH=/container/storage \
+  -e GIS_MCP_STORAGE_PROVIDER=gcp \
+  -e GIS_MCP_GCS_BUCKET=my-gis-bucket \
+  -e GIS_MCP_GCS_PREFIX=gis-data/ \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/secrets/gis-mcp-sa.json \
+  -v /home/ubuntu/secrets/gis-mcp-sa.json:/secrets/gis-mcp-sa.json:ro \
   gis-mcp
 ```
 
-#### Docker Compose Example
+Docker Compose (Linux, GCP):
 
-For easier management, use `docker-compose.yml`:
+```yaml
+services:
+  gis-mcp:
+    image: gis-mcp:latest
+    ports:
+      - "9010:9010"
+    environment:
+      - GIS_MCP_TRANSPORT=http
+      - GIS_MCP_HOST=0.0.0.0
+      - GIS_MCP_PORT=9010
+      - GIS_MCP_STORAGE_PROVIDER=gcp
+      - GIS_MCP_GCS_BUCKET=my-gis-bucket
+      - GIS_MCP_GCS_PREFIX=gis-data/
+      - GOOGLE_APPLICATION_CREDENTIALS=/secrets/gis-mcp-sa.json
+    volumes:
+      - /home/ubuntu/secrets/gis-mcp-sa.json:/secrets/gis-mcp-sa.json:ro
+```
+
+On GCE/GKE you can often omit the key file and use the attached service account (ADC).
+
+### Docker Compose (local volume)
 
 ```yaml
 version: "3.8"
@@ -161,77 +349,39 @@ services:
     ports:
       - "9010:9010"
     volumes:
-      # Option 1: Named volume (recommended)
       - gis-mcp-data:/app/.gis_mcp/data
-
-      # Option 2: Host directory mount
-      # - ./gis-data:/app/.gis_mcp/data
-
-      # Option 3: Custom path with environment variable
-      # - gis-mcp-data:/custom/storage
     environment:
       - GIS_MCP_TRANSPORT=http
       - GIS_MCP_HOST=0.0.0.0
       - GIS_MCP_PORT=9010
-      # Uncomment if using custom storage path
-      # - GIS_MCP_STORAGE_PATH=/custom/storage
 
 volumes:
   gis-mcp-data:
-    # Optional: Use a specific driver or external volume
-    # driver: local
-    # driver_opts:
-    #   type: none
-    #   o: bind
-    #   device: /host/path/to/storage
 ```
 
-#### Managing Docker Volumes
-
-**List all volumes:**
+### Managing volumes
 
 ```bash
 docker volume ls
-```
-
-**Inspect a volume:**
-
-```bash
 docker volume inspect gis-mcp-storage
-```
 
-**Backup a volume:**
-
-```bash
+# Backup
 docker run --rm \
   -v gis-mcp-storage:/data \
   -v $(pwd):/backup \
   alpine tar czf /backup/gis-mcp-backup.tar.gz -C /data .
-```
 
-**Restore a volume:**
-
-```bash
+# Restore
 docker run --rm \
   -v gis-mcp-storage:/data \
   -v $(pwd):/backup \
   alpine tar xzf /backup/gis-mcp-backup.tar.gz -C /data
-```
 
-**Remove a volume:**
-
-```bash
 docker volume rm gis-mcp-storage
 ```
 
-#### Best Practices
+### Docker tips
 
-- **Use named volumes** for production deployments as they're easier to manage and backup
-- **Use host directory mounts** for development when you need direct file access
-- **Set appropriate permissions** on host directories to ensure the container can write to them
-- **Regular backups** of volumes are recommended, especially for production data
-- **Document your volume strategy** in your deployment documentation
-
-#### Default Storage Path in Docker
-
-Inside Docker containers, the default storage path is `/app/.gis_mcp/data/`. When mounting volumes, ensure you mount to this path unless you're using a custom `GIS_MCP_STORAGE_PATH` environment variable.
+- Prefer named volumes in production; host mounts are convenient for development
+- Ensure the container user can write to mounted host directories
+- Back up volumes regularly for important data

@@ -7,7 +7,8 @@
 | Category                     | Badges                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Package**                  | [![PyPI version](https://img.shields.io/pypi/v/gis-mcp.svg)](https://pypi.org/project/gis-mcp/) [![PyPI downloads](https://static.pepy.tech/personalized-badge/gis-mcp?period=total&units=international_system&left_color=grey&right_color=blue&left_text=PyPI%20downloads)](https://pepy.tech/project/gis-mcp) [![Tests](https://github.com/mahdin75/gis-mcp/actions/workflows/test.yml/badge.svg)](https://github.com/mahdin75/gis-mcp/actions/workflows/test.yml)                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| **Installation & Transport** | [![Docker Installation](https://img.shields.io/badge/Docker-Installation-2496ED?logo=docker&logoColor=white)](https://gis-mcp.com/install/docker/) [![Transport](https://img.shields.io/badge/Transport-HTTP%20%7C%20stdio-blue)](https://github.com/mahdin75/gis-mcp) [![Storage](https://img.shields.io/badge/Storage-Supported-4CAF50?logo=files&logoColor=white)](https://gis-mcp.com/storage-configuration/)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| **Installation & Transport** | [![Docker Installation](https://img.shields.io/badge/Docker-Installation-2496ED?logo=docker&logoColor=white)](https://gis-mcp.com/install/docker/) [![Transport](https://img.shields.io/badge/Transport-HTTP%20%7C%20stdio-blue)](https://github.com/mahdin75/gis-mcp)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| **Storage**                  | [![Local Filesystem](https://img.shields.io/badge/Local-Filesystem-4CAF50?logo=files&logoColor=white)](https://gis-mcp.com/storage-configuration/) [![GCP Cloud Storage](https://img.shields.io/badge/GCP-Cloud%20Storage-4285F4?logo=googlecloud&logoColor=white)](https://gis-mcp.com/storage-configuration/)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | **Data Sources**             | [![Climate](https://img.shields.io/badge/Climate-Data-B91C1C?logo=weather&logoColor=white)](https://gis-mcp.com/data-gathering/climate/) [![Biodiversity](https://img.shields.io/badge/Biodiversity-Data-4CAF50?logo=leaf&logoColor=white)](https://gis-mcp.com/data-gathering/ecology/) [![LandCover](https://img.shields.io/badge/LandCover-Data-5D4037?logo=map&logoColor=white)](https://gis-mcp.com/data-gathering/land_cover/) [![Movement](https://img.shields.io/badge/Movement-Data-FF6B35?logo=person-walking&logoColor=white)](https://gis-mcp.com/data-gathering/movement/) [![Satellite](https://img.shields.io/badge/Satellite-Imagery-6C5CE7?logo=satellite&logoColor=white)](https://gis-mcp.com/data-gathering/satellite_imagery/) [![Administrative](https://img.shields.io/badge/Administrative-Boundaries-7289DA?logo=map&logoColor=white)](https://gis-mcp.com/data-gathering/administrative_boundaries/) |
 | **Agentic AI**               | [![LangChain Agent Example](<https://img.shields.io/badge/LangChain-Agent%20Example%20(Python)-3776AB?logo=langchain&logoColor=white>)](https://gis-mcp.com/gis-ai-agent/langchain) [![OpenAI Agent Example](<https://img.shields.io/badge/OpenAI-Agent%20Example%20(Node.js)-111827?logo=openai&logoColor=white>)](https://gis-mcp.com/gis-ai-agent/openai-nodejs)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | **Community**                | [![Discord](https://img.shields.io/badge/Discord-Community-7289DA?logo=discord&logoColor=white)](https://discord.gg/SeVmVhVbk) [![YouTube](https://img.shields.io/badge/YouTube-Tutorials-B91C1C?logo=youtube&logoColor=white)](https://www.youtube.com/@gis-mcp) [![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/mahdin75/gis-mcp)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
@@ -27,7 +28,7 @@ A Model Context Protocol (MCP) server implementation that connects Large Languag
 
 🌐 **Website:** [gis-mcp.com](https://gis-mcp.com)
 
-> Current version is 0.14.0 (Beta):
+> Current version is 0.15.0 (Beta):
 >
 > We welcome contributions and developers to join us in building this project.
 
@@ -40,6 +41,7 @@ A Model Context Protocol (MCP) server implementation that connects Large Languag
 ## 📋 Table of Contents
 
 - [Features](#-features)
+- [Storage](#-storage)
 - [Prerequisites](#-prerequisites)
 - [Vibe Coding](#vibe-coding)
 - [Installation](#-installation)
@@ -82,9 +84,29 @@ GIS MCP Server empowers AI assistants with advanced geospatial intelligence. Key
 - 🔹 **Spatial Statistics & Modeling** – Leverage PySAL for spatial autocorrelation, clustering, and neighborhood analysis.
 - 🔹 **Easy Integration** – Connect seamlessly with MCP-compatible clients like Claude Desktop or Cursor IDE.
 - 🔹 **HTTP/SSE Transport** – Run as HTTP service with RESTful storage endpoints for file upload/download operations.
+- 🔹 **Flexible Storage** – Local filesystem by default, or Google Cloud Storage when you want files in a GCS bucket.
 - 🔹 **Flexible & Extensible** – Supports Python-based GIS libraries and is ready for custom tools or workflow extensions.
 
 > 🌟 **Tip:** With GIS MCP Server, your AI can now “think spatially,” unlocking new capabilities for environmental analysis, mapping, and location intelligence.
+
+---
+
+## 💾 Storage
+
+GIS MCP Server supports two storage backends for file upload, download, and tool outputs:
+
+| Backend | When to use | Configure with |
+| ------- | ----------- | -------------- |
+| **Local filesystem** | Default; files on disk (including Docker volumes) | `--storage-path` or `GIS_MCP_STORAGE_PATH` |
+| **Google Cloud Storage (GCP)** | When you want files in a GCS bucket | `--storage-config` / `GIS_MCP_STORAGE_CONFIG` or `GIS_MCP_STORAGE_PROVIDER=gcp` |
+
+Install GCP support with:
+
+```bash
+pip install gis-mcp[gcp]
+```
+
+Full setup (paths, IAM, Docker, credentials): [Storage Configuration](https://gis-mcp.com/storage-configuration/).
 
 ---
 
