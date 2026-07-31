@@ -796,9 +796,12 @@ Made with [contrib.rocks](https://contrib.rocks).
 ## 🏆 Badges
 
 <div align="center">
-[![MCP Toplist](https://mcptoplist.com/badge/mcp.so%2Fgis-mcp-server%2Fmahdin75.svg)](https://mcptoplist.com/server/mcp.so%2Fgis-mcp-server%2Fmahdin75)
+
 [![PyPI version](https://img.shields.io/pypi/v/gis-mcp.svg)](https://pypi.org/project/gis-mcp/)
 [![PyPI downloads](https://img.shields.io/pypi/dm/gis-mcp.svg)](https://pypi.org/project/gis-mcp/)
+<br/></br>
+
+[![MCP Toplist](https://mcptoplist.com/badge/mcp.so%2Fgis-mcp-server%2Fmahdin75.svg)](https://mcptoplist.com/server/mcp.so%2Fgis-mcp-server%2Fmahdin75)
 <br/></br>
 
 [![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/mahdin75/gis-mcp)](https://archestra.ai/mcp-catalog/mahdin75__gis-mcp)
