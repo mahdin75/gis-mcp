@@ -2,6 +2,8 @@
 
 This guide helps you install and run the GIS MCP Server quickly using pip (with uv) and shows how to connect it to your IDE/client.
 
+For how GIS MCP fits beside the LLM and other tools, and how the server is structured, see **[Architecture](architecture.md)**.
+
 ### Prerequisites
 
 - Python 3.10+

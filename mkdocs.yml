@@ -19,6 +19,7 @@ theme:
 nav:
   - HOME: index.md
   - Getting Started: getting-started.md
+  - Architecture: architecture.md
   - Vibe Coding: vibe-coding.md
   - DOCUMENTATIONS:
       - Installations:
@@ -171,4 +172,8 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.highlight
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format

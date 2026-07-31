@@ -12,6 +12,8 @@ These tutorials will guide you through creating your own AI agents that can:
 - Perform spatial analysis
 - And much more!
 
+See **[Architecture](../architecture.md)** for diagrams of where GIS MCP sits in an agentic stack (LLM, agent runtime, other tools) and the server’s internal components.
+
 ## Available Agent Examples
 
 ### 1. Langchain (Python)
