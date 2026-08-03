@@ -2,7 +2,7 @@
 
 Welcome! This tutorial will guide you from complete beginner to creating your own AI agent that can perform geospatial operations. No prior experience needed - we'll cover everything step by step.
 
-📖 **[View the complete documentation →](https://gis-mcp.com/gis-ai-agent/)**
+📖 **[View the complete documentation →](https://gis-mcp.com/gis-ai-agent/langchain/basic-geospatial-agent/)**
 
 ## 📋 Table of Contents
 

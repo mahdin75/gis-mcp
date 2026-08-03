@@ -2,6 +2,8 @@
 
 Welcome! This tutorial will guide you from complete beginner to creating your own AI agent that can perform geospatial operations. No prior experience needed - we'll cover everything step by step.
 
+**Related:** [LangChain overview](README.md) · [Agent tutorials](../README.md) · [Architecture](../architecture.md) · [Best practices](../best-practices.md)
+
 ## 📋 Table of Contents
 
 - [What You'll Build](#what-youll-build)

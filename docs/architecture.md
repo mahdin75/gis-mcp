@@ -132,6 +132,8 @@ Configure storage as described in [Storage Configuration](storage-configuration.
 ## Where to go next
 
 - [Getting Started](getting-started.md) — install and run the server
-- [Build a GIS AI Agent](gis-ai-agent/README.md) — LangChain and OpenAI examples
+- [Agent Tutorials](gis-ai-agent/README.md) — overview, framework choice, and tutorials
+- [GIS MCP agent architecture](gis-ai-agent/architecture.md) — user → agent → GIS MCP → tools → data
+- [Best practices for GIS agents](gis-ai-agent/best-practices.md) — tools, CRS, planning, multi-agent habits
 - [HTTP Transport](http-transport.md) — remote agent connectivity
 - [Server Endpoints](endpoints.md) — MCP and storage HTTP routes

@@ -33,8 +33,28 @@ nav:
           - Server Endpoints: endpoints.md
       - GIS AI Agent:
           - Overview: gis-ai-agent/README.md
-          - Langchain (Python): gis-ai-agent/langchain.md
-          - OpenAI (NodeJs): gis-ai-agent/openai-nodejs.md
+          - Agent architecture: gis-ai-agent/architecture.md
+          - Choosing a framework: gis-ai-agent/choosing-framework.md
+          - Best practices: gis-ai-agent/best-practices.md
+          - LangChain:
+              - Overview: gis-ai-agent/langchain/README.md
+              - Basic geospatial agent: gis-ai-agent/langchain/basic-geospatial-agent.md
+          - LangGraph:
+              - Overview: gis-ai-agent/langgraph/README.md
+              - Stateful geospatial agent: gis-ai-agent/langgraph/stateful-geospatial-agent.md
+              - Multi-agent geospatial workflow: gis-ai-agent/langgraph/multi-agent-geospatial-workflow.md
+          - CrewAI:
+              - Overview: gis-ai-agent/crewai/README.md
+              - Multi-agent geospatial crew: gis-ai-agent/crewai/multi-agent-geospatial-crew.md
+          - LlamaIndex:
+              - Overview: gis-ai-agent/llamaindex/README.md
+              - RAG + GIS MCP agent: gis-ai-agent/llamaindex/rag-geospatial-agent.md
+          - OpenAI (Node.js):
+              - Overview: gis-ai-agent/openai-nodejs/README.md
+              - Basic geospatial agent: gis-ai-agent/openai-nodejs/basic-geospatial-agent.md
+          - Google ADK:
+              - Overview: gis-ai-agent/google-adk/README.md
+              - ADK + GIS MCP: gis-ai-agent/google-adk/adk-geospatial-agent.md
       - API Reference:
           - Data Gathering:
               - Overview: data-gathering/README.md

@@ -75,8 +75,22 @@ imagery plus web map visualization.
 - Storage Configuration: https://gis-mcp.com/storage-configuration/
 - HTTP Transport: https://gis-mcp.com/http-transport/
 - GIS AI Agent (overview): https://gis-mcp.com/gis-ai-agent/
-- GIS AI Agent - LangChain: https://gis-mcp.com/gis-ai-agent/langchain/
-- GIS AI Agent - OpenAI NodeJS: https://gis-mcp.com/gis-ai-agent/openai-nodejs/
+- GIS AI Agent - architecture: https://gis-mcp.com/gis-ai-agent/architecture/
+- GIS AI Agent - choosing a framework: https://gis-mcp.com/gis-ai-agent/choosing-framework/
+- GIS AI Agent - best practices: https://gis-mcp.com/gis-ai-agent/best-practices/
+- GIS AI Agent - LangChain overview: https://gis-mcp.com/gis-ai-agent/langchain/
+- GIS AI Agent - LangChain basic agent: https://gis-mcp.com/gis-ai-agent/langchain/basic-geospatial-agent/
+- GIS AI Agent - LangGraph (planned): https://gis-mcp.com/gis-ai-agent/langgraph/
+- GIS AI Agent - LangGraph stateful (coming soon): https://gis-mcp.com/gis-ai-agent/langgraph/stateful-geospatial-agent/
+- GIS AI Agent - LangGraph multi-agent (coming soon): https://gis-mcp.com/gis-ai-agent/langgraph/multi-agent-geospatial-workflow/
+- GIS AI Agent - CrewAI (planned): https://gis-mcp.com/gis-ai-agent/crewai/
+- GIS AI Agent - CrewAI crew (coming soon): https://gis-mcp.com/gis-ai-agent/crewai/multi-agent-geospatial-crew/
+- GIS AI Agent - LlamaIndex (planned): https://gis-mcp.com/gis-ai-agent/llamaindex/
+- GIS AI Agent - LlamaIndex RAG (coming soon): https://gis-mcp.com/gis-ai-agent/llamaindex/rag-geospatial-agent/
+- GIS AI Agent - OpenAI NodeJS overview: https://gis-mcp.com/gis-ai-agent/openai-nodejs/
+- GIS AI Agent - OpenAI NodeJS basic agent: https://gis-mcp.com/gis-ai-agent/openai-nodejs/basic-geospatial-agent/
+- GIS AI Agent - Google ADK (planned): https://gis-mcp.com/gis-ai-agent/google-adk/
+- GIS AI Agent - Google ADK tutorial (coming soon): https://gis-mcp.com/gis-ai-agent/google-adk/adk-geospatial-agent/
 - Data Gathering overview: https://gis-mcp.com/data-gathering/
 - Administrative Boundaries: https://gis-mcp.com/data-gathering/administrative_boundaries/
 - Climate: https://gis-mcp.com/data-gathering/climate/
