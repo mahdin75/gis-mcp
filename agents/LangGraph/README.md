@@ -1,10 +1,12 @@
-# LangGraph + GIS MCP sample
+# LangGraph + GIS MCP samples
 
-Stateful **transit-stop coverage** workflow: interpret → plan → execute GIS MCP tools → validate → respond.
+1. **Stateful site coverage** — single pipeline (`gis_workflow_graph.py`)
+2. **Multi-agent setback compliance** — Planner / Analysis / Validation (`multi_agent_workflow.py`)
 
-Full tutorial: https://gis-mcp.com/gis-ai-agent/langgraph/stateful-geospatial-agent/
+Tutorials:
 
-This is **not** a free-form LangChain ReAct agent. The graph stores an explicit plan and validation flags in state.
+- https://gis-mcp.com/gis-ai-agent/langgraph/stateful-geospatial-agent/
+- https://gis-mcp.com/gis-ai-agent/langgraph/multi-agent-geospatial-workflow/
 
 ## Quick start
 
@@ -16,12 +18,16 @@ pip install -r requirements.txt
 
 # Terminal 2
 python verify_graph.py
+python verify_multi_agent.py
 python gis_workflow_graph.py --demo
+python multi_agent_workflow.py --demo
 ```
 
 | File | Purpose |
 | ---- | ------- |
-| `gis_workflow_graph.py` | StateGraph workflow |
-| `verify_graph.py` | No-LLM end-to-end check |
+| `gis_workflow_graph.py` | Single stateful pipeline |
+| `verify_graph.py` | No-LLM check (single) |
+| `multi_agent_workflow.py` | Three-agent setback workflow |
+| `verify_multi_agent.py` | No-LLM check (multi-agent) |
 | `requirements.txt` | Dependencies |
 | `.env.example` | Optional LLM keys |

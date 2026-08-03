@@ -1,17 +1,17 @@
 # LangGraph
 
-Stateful, graph-based GIS agents on top of GIS MCP Server.
+Stateful and multi-agent GIS workflows on top of GIS MCP Server.
 
 ## Status
 
-**Available** — stateful site-coverage tutorial and runnable sample.
+**Available** — single stateful pipeline + practical three-agent setback workflow.
 
 ## Tutorials
 
 | Tutorial | Status | Description |
 | -------- | ------ | ----------- |
-| [Stateful geospatial agent](stateful-geospatial-agent.md) | Available | interpret → plan → GIS MCP execute → validate → respond |
-| [Multi-agent geospatial workflow](multi-agent-geospatial-workflow.md) | Coming soon | Multiple specialist nodes sharing GIS MCP |
+| [Stateful geospatial agent](stateful-geospatial-agent.md) | Available | interpret → plan → execute → validate → respond |
+| [Multi-agent geospatial workflow](multi-agent-geospatial-workflow.md) | Available | Planner + Analysis + Validation (setback compliance) |
 
 ## Sample code
 
@@ -21,14 +21,18 @@ Stateful, graph-based GIS agents on top of GIS MCP Server.
 cd agents/LangGraph
 pip install -r requirements.txt
 python verify_graph.py
+python verify_multi_agent.py
 python gis_workflow_graph.py --demo
+python multi_agent_workflow.py --demo
 ```
 
 ## When to use LangGraph
 
-- You need **explicit** multi-step GIS control flow (CRS → project → buffer → check)
-- You want validation / error branches as graph nodes
-- A free-form [LangChain agent](../langchain/basic-geospatial-agent.md) is not structured enough
+- Explicit multi-step GIS control flow (CRS → project → buffer → check)
+- Validation / error branches as graph nodes
+- Separated Planner / Analysis / Validation when auditability matters
+
+Prefer a simpler [LangChain agent](../langchain/basic-geospatial-agent.md) for short exploratory Q&A.
 
 ## Related
 

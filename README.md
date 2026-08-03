@@ -430,6 +430,13 @@ Sample: [`agents/LangGraph/`](agents/LangGraph/)
 - Explicit graph: interpret → plan → execute GIS MCP tools → validate → respond
 - Verify without an LLM: `python agents/LangGraph/verify_graph.py`
 
+### LangGraph (Python) — multi-agent setback
+
+Tutorial: **[Multi-agent setback workflow](https://gis-mcp.com/gis-ai-agent/langgraph/multi-agent-geospatial-workflow/)**
+
+- Planner / Analysis / Validation agents; only Analysis calls GIS MCP
+- Verify: `python agents/LangGraph/verify_multi_agent.py`
+
 ### More agent docs
 
 👉 **[Agent tutorials overview →](https://gis-mcp.com/gis-ai-agent/)**

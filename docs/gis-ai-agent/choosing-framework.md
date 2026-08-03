@@ -39,9 +39,9 @@ Ask these questions before you commit:
 
 ### LangGraph (Python)
 
-- **Strengths:** Explicit `StateGraph`, stored plan, validation gate, error branch—better for repeatable GIS pipelines than a free-form agent.
+- **Strengths:** Explicit `StateGraph`, stored plan, validation gate, error branch—better for repeatable GIS pipelines than a free-form agent. Multi-agent tutorial separates Planner / Analysis / Validation for setback-style work.
 - **Transport used in sample:** `streamable_http` to `/mcp`.
-- **Start:** [LangGraph tutorials](langgraph/README.md) → [Stateful site-coverage workflow](langgraph/stateful-geospatial-agent.md).
+- **Start:** [LangGraph tutorials](langgraph/README.md) → [Stateful site-coverage](langgraph/stateful-geospatial-agent.md) · [Multi-agent setback](langgraph/multi-agent-geospatial-workflow.md).
 
 ## Planned (not implemented yet)
 
@@ -52,7 +52,7 @@ Tutorials are planned in this order of documentation priority. Stub pages exist 
 | **CrewAI** | Clear multi-agent “crew” story for analyst / cartographer roles | API churn; pin versions when the tutorial lands |
 | **LlamaIndex** | Distinct RAG + tools narrative | Keep GIS claims limited to MCP tools + your indexed content |
 | **Google ADK** | Relevant if you already standardize on Google’s agent kit; optional synergy with GCS storage | Evaluate demand before investing heavily |
-| **LangGraph multi-agent** | Specialist nodes on top of the stateful tutorial | Single-pipeline tutorial already shipped |
+| **LangGraph multi-agent extras** | Additional specialist patterns beyond Planner/Analysis/Validation | Core three-agent tutorial already shipped |
 
 ## Not prioritized for first-wave tutorials
 
@@ -82,8 +82,8 @@ GIS MCP does not bundle LangChain, CrewAI, LlamaIndex, or other agent SDKs. Thos
 ## Practical recommendation
 
 1. **New to GIS MCP agents?** Follow the [LangChain park buffer tutorial](langchain/basic-geospatial-agent.md) or [OpenAI Node.js](openai-nodejs/basic-geospatial-agent.md) tutorial.
-2. **Need multi-step control with validation?** Use the [LangGraph stateful workflow](langgraph/stateful-geospatial-agent.md).
-3. **Need multiple specialist roles?** Prefer CrewAI when published; until then, do not fake multi-agent behavior inside GIS MCP—it has no built-in crew runtime.
+2. **Need multi-step control with validation?** Use the [LangGraph stateful workflow](langgraph/stateful-geospatial-agent.md) or the [multi-agent setback workflow](langgraph/multi-agent-geospatial-workflow.md).
+3. **Need multiple specialist roles beyond that?** Prefer CrewAI when published; do not fake crews inside GIS MCP—it has no built-in multi-agent runtime.
 4. **Read [Best practices](best-practices.md)** before scaling to large toolsets or production workflows.
 
 ## Related pages

@@ -63,7 +63,7 @@ For server internals (transports, tool categories, storage adapters), see [GIS M
 | Framework | Status | Entry point |
 | --------- | ------ | ----------- |
 | [LangChain (Python)](langchain/README.md) | Available | [Park buffer proximity agent](langchain/basic-geospatial-agent.md) |
-| [LangGraph (Python)](langgraph/README.md) | Available | [Stateful site-coverage workflow](langgraph/stateful-geospatial-agent.md) |
+| [LangGraph (Python)](langgraph/README.md) | Available | [Stateful site-coverage](langgraph/stateful-geospatial-agent.md) · [Multi-agent setback](langgraph/multi-agent-geospatial-workflow.md) |
 | [OpenAI Agents SDK (Node.js)](openai-nodejs/README.md) | Available | [Basic geospatial agent](openai-nodejs/basic-geospatial-agent.md) |
 
 Runnable sample projects also live in the repository under [`agents/`](https://github.com/mahdin75/gis-mcp/tree/main/agents).
@@ -74,7 +74,7 @@ These frameworks were prioritized for documentation after an architecture and ad
 
 | Framework | Planned focus | Entry point |
 | --------- | ------------- | ----------- |
-| [LangGraph](langgraph/README.md) | Multi-agent specialist nodes | [Multi-agent workflow](langgraph/multi-agent-geospatial-workflow.md) (coming soon) |
+| [LangGraph](langgraph/README.md) | Further multi-agent patterns | [Multi-agent tutorial](langgraph/multi-agent-geospatial-workflow.md) shipped; more patterns optional |
 | [CrewAI](crewai/README.md) | Role-based multi-agent GIS crews | [Multi-agent crew](crewai/multi-agent-geospatial-crew.md) |
 | [LlamaIndex](llamaindex/README.md) | Retrieval + GIS MCP tools | [RAG + GIS MCP](llamaindex/rag-geospatial-agent.md) |
 | [Google ADK](google-adk/README.md) | GCP-oriented agent apps (evaluate on demand) | [ADK + GIS MCP](google-adk/adk-geospatial-agent.md) |
@@ -86,7 +86,7 @@ Frameworks such as AutoGen / classic Semantic Kernel, AutoGPT, BabyAGI, MetaGPT,
 Short version:
 
 - **Start here (Python):** [LangChain](langchain/README.md) — free-form GIS agent.
-- **Stateful GIS pipelines:** [LangGraph](langgraph/README.md) — plan → execute → validate.
+- **Stateful GIS pipelines:** [LangGraph](langgraph/README.md) — single pipeline or Planner/Analysis/Validation.
 - **JavaScript / TypeScript:** [OpenAI Agents SDK](openai-nodejs/README.md).
 - **Role-based multi-agent teams:** wait for or contribute [CrewAI](crewai/README.md).
 - **Document/RAG-heavy GIS apps:** wait for or contribute [LlamaIndex](llamaindex/README.md).

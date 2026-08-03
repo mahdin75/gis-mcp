@@ -28,6 +28,8 @@ Use this as concise context for LLMs about GIS MCP.
     (agents/Langchain/; verify_tools.py)
   - LangGraph stateful coverage: https://gis-mcp.com/gis-ai-agent/langgraph/stateful-geospatial-agent/
     (agents/LangGraph/; verify_graph.py)
+  - LangGraph multi-agent setback: https://gis-mcp.com/gis-ai-agent/langgraph/multi-agent-geospatial-workflow/
+    (multi_agent_workflow.py; verify_multi_agent.py)
   - OpenAI Node tutorial available; CrewAI/LlamaIndex/ADK planned.
 
 Docs: https://gis-mcp.com/
