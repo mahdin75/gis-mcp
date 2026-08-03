@@ -33,5 +33,6 @@ This section contains practical, step-by-step examples for using GIS MCP Server 
   - Start with the [Agent Tutorials overview](../gis-ai-agent/README.md), [agent architecture](../gis-ai-agent/architecture.md), and [best practices](../gis-ai-agent/best-practices.md).
   - Available tutorials:
     - **[LangChain (Python)](../gis-ai-agent/langchain/basic-geospatial-agent.md)**: Park buffer proximity (UTM project → 100 m buffer → intersect → geodetic distance) with OpenRouter or OpenAI.
+    - **[LangGraph (Python)](../gis-ai-agent/langgraph/stateful-geospatial-agent.md)**: Stateful interpret → plan → execute → validate → respond (transit-stop coverage).
     - **[OpenAI (Node.js)](../gis-ai-agent/openai-nodejs/basic-geospatial-agent.md)**: JavaScript/TypeScript developers using OpenAI's Agent SDK.
   - Planned framework sections (stubs): LangGraph, CrewAI, LlamaIndex, Google ADK — see [Choosing an agent framework](../gis-ai-agent/choosing-framework.md).

@@ -421,9 +421,14 @@ Tutorial: **[Park buffer proximity agent](https://gis-mcp.com/gis-ai-agent/langc
 
 Sample: [`agents/Langchain/`](agents/Langchain/)
 
-- Connect LangChain `create_agent` to GIS MCP over HTTP (`MultiServerMCPClient`)
-- Project lon/lat polygons to UTM, buffer a park by **100 m**, intersect a building, report geodetic centroid distance
-- Verify the workflow without an LLM: `python agents/Langchain/verify_tools.py`
+### LangGraph (Python) — stateful site coverage
+
+Tutorial: **[Stateful site-coverage workflow](https://gis-mcp.com/gis-ai-agent/langgraph/stateful-geospatial-agent/)**
+
+Sample: [`agents/LangGraph/`](agents/LangGraph/)
+
+- Explicit graph: interpret → plan → execute GIS MCP tools → validate → respond
+- Verify without an LLM: `python agents/LangGraph/verify_graph.py`
 
 ### More agent docs
 

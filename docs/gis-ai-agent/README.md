@@ -63,6 +63,7 @@ For server internals (transports, tool categories, storage adapters), see [GIS M
 | Framework | Status | Entry point |
 | --------- | ------ | ----------- |
 | [LangChain (Python)](langchain/README.md) | Available | [Park buffer proximity agent](langchain/basic-geospatial-agent.md) |
+| [LangGraph (Python)](langgraph/README.md) | Available | [Stateful site-coverage workflow](langgraph/stateful-geospatial-agent.md) |
 | [OpenAI Agents SDK (Node.js)](openai-nodejs/README.md) | Available | [Basic geospatial agent](openai-nodejs/basic-geospatial-agent.md) |
 
 Runnable sample projects also live in the repository under [`agents/`](https://github.com/mahdin75/gis-mcp/tree/main/agents).
@@ -73,7 +74,7 @@ These frameworks were prioritized for documentation after an architecture and ad
 
 | Framework | Planned focus | Entry point |
 | --------- | ------------- | ----------- |
-| [LangGraph](langgraph/README.md) | Stateful multi-step GIS pipelines | [Stateful agent](langgraph/stateful-geospatial-agent.md), [Multi-agent workflow](langgraph/multi-agent-geospatial-workflow.md) |
+| [LangGraph](langgraph/README.md) | Multi-agent specialist nodes | [Multi-agent workflow](langgraph/multi-agent-geospatial-workflow.md) (coming soon) |
 | [CrewAI](crewai/README.md) | Role-based multi-agent GIS crews | [Multi-agent crew](crewai/multi-agent-geospatial-crew.md) |
 | [LlamaIndex](llamaindex/README.md) | Retrieval + GIS MCP tools | [RAG + GIS MCP](llamaindex/rag-geospatial-agent.md) |
 | [Google ADK](google-adk/README.md) | GCP-oriented agent apps (evaluate on demand) | [ADK + GIS MCP](google-adk/adk-geospatial-agent.md) |
@@ -84,9 +85,9 @@ Frameworks such as AutoGen / classic Semantic Kernel, AutoGPT, BabyAGI, MetaGPT,
 
 Short version:
 
-- **Start here (Python):** [LangChain](langchain/README.md) — existing end-to-end tutorial.
+- **Start here (Python):** [LangChain](langchain/README.md) — free-form GIS agent.
+- **Stateful GIS pipelines:** [LangGraph](langgraph/README.md) — plan → execute → validate.
 - **JavaScript / TypeScript:** [OpenAI Agents SDK](openai-nodejs/README.md).
-- **Stateful / branching workflows:** wait for or contribute [LangGraph](langgraph/README.md).
 - **Role-based multi-agent teams:** wait for or contribute [CrewAI](crewai/README.md).
 - **Document/RAG-heavy GIS apps:** wait for or contribute [LlamaIndex](llamaindex/README.md).
 
@@ -105,8 +106,8 @@ Full comparison criteria: [Choosing an agent framework](choosing-framework.md).
 Most custom agent samples in this project expect:
 
 1. **GIS MCP Server installed** — see [pip](../install/pip.md) or [Docker](../install/docker.md).
-2. **HTTP transport** for remote/custom agents — see [HTTP Transport](../http-transport.md). Existing LangChain and OpenAI samples use `http://localhost:9010/mcp`.
-3. An **LLM API key** for the framework you use (for example OpenRouter or OpenAI), configured in the agent app—not inside GIS MCP.
+2. **HTTP transport** for remote/custom agents — see [HTTP Transport](../http-transport.md). Python samples default to `http://127.0.0.1:9010/mcp`.
+3. An **LLM API key** for agent demos that call a model (LangGraph verify/demo can run without a key). Keys live in the agent app—not inside GIS MCP.
 4. Optional extras (`[visualize]`, `[climate]`, data-gathering packages, and so on) only if your workflow needs those tools — see [Getting Started](../getting-started.md).
 
 Desktop MCP clients (Claude Desktop, Cursor) typically use **stdio** instead of HTTP; that path is covered in the install docs and does not require the agent tutorial stack.

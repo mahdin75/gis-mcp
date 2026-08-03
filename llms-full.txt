@@ -81,7 +81,7 @@ imagery plus web map visualization.
 - GIS AI Agent - LangChain overview: https://gis-mcp.com/gis-ai-agent/langchain/
 - GIS AI Agent - LangChain basic agent: https://gis-mcp.com/gis-ai-agent/langchain/basic-geospatial-agent/
 - GIS AI Agent - LangGraph (planned): https://gis-mcp.com/gis-ai-agent/langgraph/
-- GIS AI Agent - LangGraph stateful (coming soon): https://gis-mcp.com/gis-ai-agent/langgraph/stateful-geospatial-agent/
+- GIS AI Agent - LangGraph stateful: https://gis-mcp.com/gis-ai-agent/langgraph/stateful-geospatial-agent/
 - GIS AI Agent - LangGraph multi-agent (coming soon): https://gis-mcp.com/gis-ai-agent/langgraph/multi-agent-geospatial-workflow/
 - GIS AI Agent - CrewAI (planned): https://gis-mcp.com/gis-ai-agent/crewai/
 - GIS AI Agent - CrewAI crew (coming soon): https://gis-mcp.com/gis-ai-agent/crewai/multi-agent-geospatial-crew/

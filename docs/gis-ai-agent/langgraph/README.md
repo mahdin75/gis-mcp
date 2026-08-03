@@ -4,30 +4,31 @@ Stateful, graph-based GIS agents on top of GIS MCP Server.
 
 ## Status
 
-**Planned** — tutorial not published yet.
+**Available** — stateful site-coverage tutorial and runnable sample.
 
-LangGraph is a **Tier 1** documentation target: it shares the LangChain MCP adapter ecosystem already used by the [LangChain](../langchain/README.md) sample, and it fills the gap for multi-step and branching geospatial workflows.
+## Tutorials
 
-## Planned tutorials
+| Tutorial | Status | Description |
+| -------- | ------ | ----------- |
+| [Stateful geospatial agent](stateful-geospatial-agent.md) | Available | interpret → plan → GIS MCP execute → validate → respond |
+| [Multi-agent geospatial workflow](multi-agent-geospatial-workflow.md) | Coming soon | Multiple specialist nodes sharing GIS MCP |
 
-| Tutorial | Status | Intended focus |
-| -------- | ------ | -------------- |
-| [Stateful geospatial agent](stateful-geospatial-agent.md) | Coming soon | Checkpointed multi-step GIS pipeline (inspect → CRS → analyze → save) |
-| [Multi-agent geospatial workflow](multi-agent-geospatial-workflow.md) | Coming soon | Graph with specialized nodes sharing GIS MCP tools |
+## Sample code
+
+[`agents/LangGraph/`](https://github.com/mahdin75/gis-mcp/tree/main/agents/LangGraph)
+
+```bash
+cd agents/LangGraph
+pip install -r requirements.txt
+python verify_graph.py
+python gis_workflow_graph.py --demo
+```
 
 ## When to use LangGraph
 
-- You need explicit control flow, branching, or human-in-the-loop steps.
-- Your GIS workflow is longer than a single tool-calling turn.
-- You already use LangChain with GIS MCP and need more structure.
-
-Until this tutorial ships, start with the [LangChain basic agent](../langchain/basic-geospatial-agent.md) and apply [best practices](../best-practices.md) for planning and CRS handling.
-
-## Prerequisites (expected)
-
-- GIS MCP Server with HTTP transport
-- LangGraph + LangChain MCP adapters (versions to be pinned in the future tutorial)
-- Same LLM provider setup pattern as other Python agent samples
+- You need **explicit** multi-step GIS control flow (CRS → project → buffer → check)
+- You want validation / error branches as graph nodes
+- A free-form [LangChain agent](../langchain/basic-geospatial-agent.md) is not structured enough
 
 ## Related
 

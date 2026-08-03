@@ -18,7 +18,7 @@ Ask these questions before you commit:
 | ------------ | ------ | ----------- |
 | Fastest Python start with GIS MCP | **LangChain** | [Available](langchain/README.md) |
 | Node.js / TypeScript agent | **OpenAI Agents SDK** | [Available](openai-nodejs/README.md) |
-| Explicit state, branching, checkpoints | **LangGraph** | [Planned](langgraph/README.md) |
+| Explicit state, branching, checkpoints | **LangGraph** | [Available](langgraph/README.md) |
 | Role-based multi-agent teams | **CrewAI** | [Planned](crewai/README.md) |
 | Retrieval over documents **plus** GIS tools | **LlamaIndex** | [Planned](llamaindex/README.md) |
 | Google Cloud–centric agent stack | **Google ADK** | [Planned / evaluate](google-adk/README.md) |
@@ -37,16 +37,22 @@ Ask these questions before you commit:
 - **Transport used in sample:** HTTP streamable MCP to `/mcp`.
 - **Start:** [OpenAI Node.js tutorials](openai-nodejs/README.md) → [Basic geospatial agent](openai-nodejs/basic-geospatial-agent.md).
 
+### LangGraph (Python)
+
+- **Strengths:** Explicit `StateGraph`, stored plan, validation gate, error branch—better for repeatable GIS pipelines than a free-form agent.
+- **Transport used in sample:** `streamable_http` to `/mcp`.
+- **Start:** [LangGraph tutorials](langgraph/README.md) → [Stateful site-coverage workflow](langgraph/stateful-geospatial-agent.md).
+
 ## Planned (not implemented yet)
 
 Tutorials are planned in this order of documentation priority. Stub pages exist so navigation and contributions stay consistent.
 
 | Framework | Why it is on the roadmap | Caveats |
 | --------- | ------------------------ | ------- |
-| **LangGraph** | Same MCP adapter stack as LangChain; best fit for multi-step GIS pipelines | Tutorial not published yet |
 | **CrewAI** | Clear multi-agent “crew” story for analyst / cartographer roles | API churn; pin versions when the tutorial lands |
 | **LlamaIndex** | Distinct RAG + tools narrative | Keep GIS claims limited to MCP tools + your indexed content |
 | **Google ADK** | Relevant if you already standardize on Google’s agent kit; optional synergy with GCS storage | Evaluate demand before investing heavily |
+| **LangGraph multi-agent** | Specialist nodes on top of the stateful tutorial | Single-pipeline tutorial already shipped |
 
 ## Not prioritized for first-wave tutorials
 
@@ -76,7 +82,7 @@ GIS MCP does not bundle LangChain, CrewAI, LlamaIndex, or other agent SDKs. Thos
 ## Practical recommendation
 
 1. **New to GIS MCP agents?** Follow the [LangChain park buffer tutorial](langchain/basic-geospatial-agent.md) or [OpenAI Node.js](openai-nodejs/basic-geospatial-agent.md) tutorial.
-2. **Need multi-step control next?** Prefer LangGraph once its tutorial is published; until then, keep a single LangChain agent and stricter prompts/tool subsets.
+2. **Need multi-step control with validation?** Use the [LangGraph stateful workflow](langgraph/stateful-geospatial-agent.md).
 3. **Need multiple specialist roles?** Prefer CrewAI when published; until then, do not fake multi-agent behavior inside GIS MCP—it has no built-in crew runtime.
 4. **Read [Best practices](best-practices.md)** before scaling to large toolsets or production workflows.
 
