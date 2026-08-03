@@ -32,6 +32,6 @@ This section contains practical, step-by-step examples for using GIS MCP Server 
   - Create your own AI agent from scratch using the GIS MCP Server.
   - Start with the [Agent Tutorials overview](../gis-ai-agent/README.md), [agent architecture](../gis-ai-agent/architecture.md), and [best practices](../gis-ai-agent/best-practices.md).
   - Available tutorials:
-    - **[LangChain (Python)](../gis-ai-agent/langchain/basic-geospatial-agent.md)**: Step-by-step tutorial from zero to hero. Integrate with OpenRouter to access multiple AI models (DeepSeek, Gemini, GPT-4, Claude, etc.).
+    - **[LangChain (Python)](../gis-ai-agent/langchain/basic-geospatial-agent.md)**: Park buffer proximity (UTM project → 100 m buffer → intersect → geodetic distance) with OpenRouter or OpenAI.
     - **[OpenAI (Node.js)](../gis-ai-agent/openai-nodejs/basic-geospatial-agent.md)**: JavaScript/TypeScript developers using OpenAI's Agent SDK.
   - Planned framework sections (stubs): LangGraph, CrewAI, LlamaIndex, Google ADK — see [Choosing an agent framework](../gis-ai-agent/choosing-framework.md).

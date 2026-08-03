@@ -29,7 +29,7 @@ Ask these questions before you commit:
 
 - **Strengths:** Broad ecosystem; official MCP adapters used by the published GIS MCP sample; good default for single-agent geospatial assistants.
 - **Transport used in sample:** HTTP streamable MCP to `/mcp`.
-- **Start:** [LangChain tutorials](langchain/README.md) → [Basic geospatial agent](langchain/basic-geospatial-agent.md).
+- **Start:** [LangChain tutorials](langchain/README.md) → [Park buffer proximity agent](langchain/basic-geospatial-agent.md).
 
 ### OpenAI Agents SDK (Node.js)
 
@@ -75,7 +75,7 @@ GIS MCP does not bundle LangChain, CrewAI, LlamaIndex, or other agent SDKs. Thos
 
 ## Practical recommendation
 
-1. **New to GIS MCP agents?** Follow the [LangChain](langchain/basic-geospatial-agent.md) or [OpenAI Node.js](openai-nodejs/basic-geospatial-agent.md) tutorial.
+1. **New to GIS MCP agents?** Follow the [LangChain park buffer tutorial](langchain/basic-geospatial-agent.md) or [OpenAI Node.js](openai-nodejs/basic-geospatial-agent.md) tutorial.
 2. **Need multi-step control next?** Prefer LangGraph once its tutorial is published; until then, keep a single LangChain agent and stricter prompts/tool subsets.
 3. **Need multiple specialist roles?** Prefer CrewAI when published; until then, do not fake multi-agent behavior inside GIS MCP—it has no built-in crew runtime.
 4. **Read [Best practices](best-practices.md)** before scaling to large toolsets or production workflows.

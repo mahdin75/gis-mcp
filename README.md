@@ -413,33 +413,27 @@ After configuration:
 
 ## 🤖 Build Your First GIS AI Agent
 
-Ready to create your own AI agent that can perform geospatial operations? Our comprehensive tutorial will guide you from zero to hero!
+Create agents that call **real GIS MCP tools** (not invented spatial math).
 
-### What You'll Learn
+### LangChain (Python) — park buffer proximity
 
-- ✅ How to set up the GIS MCP server in HTTP mode
-- ✅ How to build a LangChain agent from scratch
-- ✅ How to connect your agent to GIS tools
-- ✅ How to use OpenRouter to access multiple AI models (DeepSeek, Gemini, GPT-4, Claude, etc.)
-- ✅ How to customize and extend your agent
+Tutorial: **[Park buffer proximity agent](https://gis-mcp.com/gis-ai-agent/langchain/basic-geospatial-agent/)**
 
-### Get Started
+Sample: [`agents/Langchain/`](agents/Langchain/)
 
-👉 **[Follow the complete tutorial →](https://gis-mcp.com/gis-ai-agent/)**
+- Connect LangChain `create_agent` to GIS MCP over HTTP (`MultiServerMCPClient`)
+- Project lon/lat polygons to UTM, buffer a park by **100 m**, intersect a building, report geodetic centroid distance
+- Verify the workflow without an LLM: `python agents/Langchain/verify_tools.py`
 
-📝 **[Read the Medium article →](https://medium.com/@mahdinazari75/build-your-first-gis-ai-agent-by-gis-mcp-server-langchain-c0c1bfa36f6d)**
+### More agent docs
 
-🎥 **[Watch tutorials on YouTube →](https://www.youtube.com/@gis-mcp)**
+👉 **[Agent tutorials overview →](https://gis-mcp.com/gis-ai-agent/)**
 
-The tutorial is beginner-friendly and requires no prior AI or GIS experience. You'll build a working agent that can:
+Also available: [OpenAI Agents SDK (Node.js)](https://gis-mcp.com/gis-ai-agent/openai-nodejs/basic-geospatial-agent/)
 
-- Calculate distances between points
-- Transform coordinates between different systems
-- Create buffers around locations
-- Perform spatial analysis
-- And much more!
+📝 **[Medium article (LangChain intro) →](https://medium.com/@mahdinazari75/build-your-first-gis-ai-agent-by-gis-mcp-server-langchain-c0c1bfa36f6d)**
 
-**Perfect for**: Developers, data scientists, GIS professionals, and anyone interested in building AI-powered geospatial applications.
+🎥 **[YouTube →](https://www.youtube.com/@gis-mcp)**
 
 ## 📚 Available Functions
 

@@ -4,37 +4,38 @@ Build GIS-enabled agents in **Python** with LangChain and GIS MCP Server.
 
 ## Status
 
-**Available** — end-to-end tutorial and sample project.
+**Available** — end-to-end tutorial, runnable sample, and MCP workflow verifier.
 
 ## Tutorials
 
 | Tutorial | Status | Description |
 | -------- | ------ | ----------- |
-| [Basic geospatial agent](basic-geospatial-agent.md) | Available | Connect LangChain to GIS MCP over HTTP, load MCP tools, run an interactive GIS assistant |
-
-Additional LangChain guides can be added beside this file as the section grows.
+| [Park buffer proximity agent](basic-geospatial-agent.md) | Available | LangChain + MCP HTTP: project → buffer 100 m → intersect → geodetic distance |
 
 ## Sample code
 
 Repository: [`agents/Langchain/`](https://github.com/mahdin75/gis-mcp/tree/main/agents/Langchain)
 
+| File | Purpose |
+| ---- | ------- |
+| `my_gis_agent.py` | Interactive agent and `--demo` proximity workflow |
+| `verify_tools.py` | No-LLM check that GIS MCP tools perform the workflow |
+| `requirements.txt` | LangChain / MCP adapter dependencies |
+| `.env.example` | API key and optional URL/model overrides |
+
 ## When to use LangChain
 
-- You want the fastest documented Python path to a GIS MCP agent.
-- You need a single-agent loop with MCP tool calling.
-- You plan to grow into [LangGraph](../langgraph/README.md) later for stateful workflows.
+- Fastest documented Python path to a GIS MCP agent
+- Single-agent tool calling with official MCP adapters
+- Path toward [LangGraph](../langgraph/README.md) for stateful graphs later
 
 ## Prerequisites
 
-- GIS MCP Server running (HTTP recommended for this tutorial)
+- GIS MCP Server (HTTP recommended)
 - Python 3.10+
-- LLM API access as described in the tutorial (OpenRouter in the published sample)
+- `OPENROUTER_API_KEY` or `OPENAI_API_KEY` for the agent (not required for `verify_tools.py`)
 
-See also: [HTTP Transport](../../http-transport.md), [Best practices](../best-practices.md).
-
-## Planned under this section
-
-- Optional follow-ups: tool subsetting patterns, extras-aware agents (`[visualize]`, data gathering)
+See: [HTTP Transport](../../http-transport.md), [Best practices](../best-practices.md).
 
 ## Related
 

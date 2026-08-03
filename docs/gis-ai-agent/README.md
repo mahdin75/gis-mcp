@@ -62,7 +62,7 @@ For server internals (transports, tool categories, storage adapters), see [GIS M
 
 | Framework | Status | Entry point |
 | --------- | ------ | ----------- |
-| [LangChain (Python)](langchain/README.md) | Available | [Basic geospatial agent](langchain/basic-geospatial-agent.md) |
+| [LangChain (Python)](langchain/README.md) | Available | [Park buffer proximity agent](langchain/basic-geospatial-agent.md) |
 | [OpenAI Agents SDK (Node.js)](openai-nodejs/README.md) | Available | [Basic geospatial agent](openai-nodejs/basic-geospatial-agent.md) |
 
 Runnable sample projects also live in the repository under [`agents/`](https://github.com/mahdin75/gis-mcp/tree/main/agents).

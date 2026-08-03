@@ -1,6 +1,12 @@
+# LangChain + GIS MCP agent sample
+# Install into a dedicated venv: pip install -r requirements.txt
+#
+# Also install/run GIS MCP separately (same or another env):
+#   pip install gis-mcp
+#   GIS_MCP_TRANSPORT=http GIS_MCP_HOST=localhost GIS_MCP_PORT=9010 gis-mcp
+
 langchain>=1.0.0
 langchain-openai>=1.0.0
 langchain-core>=1.0.0
 langchain-mcp-adapters>=0.1.0
 python-dotenv>=1.0.0
-

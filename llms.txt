@@ -24,8 +24,10 @@ Use this as concise context for LLMs about GIS MCP.
   - Visualization static/export and interactive web maps (Folium/PyDeck).
 - Agents: GIS MCP is the geospatial tool layer for agent frameworks (MCP client
   → GIS MCP → tools). Docs: https://gis-mcp.com/gis-ai-agent/ (architecture,
-  choosing a framework, best practices; LangChain and OpenAI Node tutorials
-  available; LangGraph/CrewAI/LlamaIndex/ADK planned).
+  choosing a framework, best practices). LangChain park-buffer tutorial:
+  https://gis-mcp.com/gis-ai-agent/langchain/basic-geospatial-agent/ (sample in
+  agents/Langchain/; verify with python verify_tools.py). OpenAI Node tutorial
+  available; LangGraph/CrewAI/LlamaIndex/ADK planned.
 
 Docs: https://gis-mcp.com/
 Full context: see `llms-full.txt`.

@@ -38,7 +38,7 @@ nav:
           - Best practices: gis-ai-agent/best-practices.md
           - LangChain:
               - Overview: gis-ai-agent/langchain/README.md
-              - Basic geospatial agent: gis-ai-agent/langchain/basic-geospatial-agent.md
+              - Park buffer proximity agent: gis-ai-agent/langchain/basic-geospatial-agent.md
           - LangGraph:
               - Overview: gis-ai-agent/langgraph/README.md
               - Stateful geospatial agent: gis-ai-agent/langgraph/stateful-geospatial-agent.md
