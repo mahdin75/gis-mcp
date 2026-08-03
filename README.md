@@ -441,6 +441,8 @@ Tutorial: **[Multi-agent setback workflow](https://gis-mcp.com/gis-ai-agent/lang
 
 👉 **[Agent tutorials overview →](https://gis-mcp.com/gis-ai-agent/)**
 
+Minimal starters: [`templates/`](templates/) (`langchain-gis-agent`, `langgraph-gis-workflow`, `langgraph-multi-agent-gis`)
+
 Also available: [OpenAI Agents SDK (Node.js)](https://gis-mcp.com/gis-ai-agent/openai-nodejs/basic-geospatial-agent/)
 
 📝 **[Medium article (LangChain intro) →](https://medium.com/@mahdinazari75/build-your-first-gis-ai-agent-by-gis-mcp-server-langchain-c0c1bfa36f6d)**

@@ -15,7 +15,9 @@ Stateful and multi-agent GIS workflows on top of GIS MCP Server.
 
 ## Sample code
 
-[`agents/LangGraph/`](https://github.com/mahdin75/gis-mcp/tree/main/agents/LangGraph)
+[`agents/LangGraph/`](https://github.com/mahdin75/gis-mcp/tree/main/agents/LangGraph) — full reference implementations  
+
+[`templates/langgraph-gis-workflow/`](https://github.com/mahdin75/gis-mcp/tree/main/templates/langgraph-gis-workflow) · [`templates/langgraph-multi-agent-gis/`](https://github.com/mahdin75/gis-mcp/tree/main/templates/langgraph-multi-agent-gis) — minimal starters
 
 ```bash
 cd agents/LangGraph

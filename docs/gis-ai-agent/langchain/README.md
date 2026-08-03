@@ -16,6 +16,8 @@ Build GIS-enabled agents in **Python** with LangChain and GIS MCP Server.
 
 Repository: [`agents/Langchain/`](https://github.com/mahdin75/gis-mcp/tree/main/agents/Langchain)
 
+Minimal starter: [`templates/langchain-gis-agent/`](https://github.com/mahdin75/gis-mcp/tree/main/templates/langchain-gis-agent)
+
 | File | Purpose |
 | ---- | ------- |
 | `my_gis_agent.py` | Interactive agent and `--demo` proximity workflow |

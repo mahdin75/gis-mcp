@@ -58,6 +58,18 @@ Typical path:
 
 For server internals (transports, tool categories, storage adapters), see [GIS MCP agent architecture](architecture.md) and the project [Architecture](../architecture.md) page.
 
+## Templates
+
+Minimal starters (copy and customize): [`templates/`](https://github.com/mahdin75/gis-mcp/tree/main/templates)
+
+| Template | Use when |
+| -------- | -------- |
+| `langchain-gis-agent` | Single-agent GIS assistant |
+| `langgraph-gis-workflow` | Stateful plan → execute → validate |
+| `langgraph-multi-agent-gis` | Planner / Analysis / Validation |
+
+Full walkthroughs remain under the framework sections below. Runnable reference apps live in [`agents/`](https://github.com/mahdin75/gis-mcp/tree/main/agents).
+
 ## Available tutorials
 
 | Framework | Status | Entry point |
@@ -67,6 +79,7 @@ For server internals (transports, tool categories, storage adapters), see [GIS M
 | [OpenAI Agents SDK (Node.js)](openai-nodejs/README.md) | Available | [Basic geospatial agent](openai-nodejs/basic-geospatial-agent.md) |
 
 Runnable sample projects also live in the repository under [`agents/`](https://github.com/mahdin75/gis-mcp/tree/main/agents).
+Starter scaffolds: [`templates/`](https://github.com/mahdin75/gis-mcp/tree/main/templates).
 
 ## Planned tutorials
 
