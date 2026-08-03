@@ -10,7 +10,7 @@
 | **Installation & Transport** | [![Docker Installation](https://img.shields.io/badge/Docker-Installation-2496ED?logo=docker&logoColor=white)](https://gis-mcp.com/install/docker/) [![Transport](https://img.shields.io/badge/Transport-HTTP%20%7C%20stdio-blue)](https://github.com/mahdin75/gis-mcp)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | **Storage**                  | [![Local Filesystem](https://img.shields.io/badge/Local-Filesystem-4CAF50?logo=files&logoColor=white)](https://gis-mcp.com/storage-configuration/) [![GCP Cloud Storage](https://img.shields.io/badge/GCP-Cloud%20Storage-4285F4?logo=googlecloud&logoColor=white)](https://gis-mcp.com/storage-configuration/)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | **Data Sources**             | [![Climate](https://img.shields.io/badge/Climate-Data-B91C1C?logo=weather&logoColor=white)](https://gis-mcp.com/data-gathering/climate/) [![Biodiversity](https://img.shields.io/badge/Biodiversity-Data-4CAF50?logo=leaf&logoColor=white)](https://gis-mcp.com/data-gathering/ecology/) [![LandCover](https://img.shields.io/badge/LandCover-Data-5D4037?logo=map&logoColor=white)](https://gis-mcp.com/data-gathering/land_cover/) [![Movement](https://img.shields.io/badge/Movement-Data-FF6B35?logo=person-walking&logoColor=white)](https://gis-mcp.com/data-gathering/movement/) [![Satellite](https://img.shields.io/badge/Satellite-Imagery-6C5CE7?logo=satellite&logoColor=white)](https://gis-mcp.com/data-gathering/satellite_imagery/) [![Administrative](https://img.shields.io/badge/Administrative-Boundaries-7289DA?logo=map&logoColor=white)](https://gis-mcp.com/data-gathering/administrative_boundaries/) |
-| **Agentic AI**               | [![LangChain Agent Example](<https://img.shields.io/badge/LangChain-Agent%20Example%20(Python)-3776AB?logo=langchain&logoColor=white>)](https://gis-mcp.com/gis-ai-agent/langchain) [![OpenAI Agent Example](<https://img.shields.io/badge/OpenAI-Agent%20Example%20(Node.js)-111827?logo=openai&logoColor=white>)](https://gis-mcp.com/gis-ai-agent/openai-nodejs)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| **Agentic AI**               | [![LangChain Agent Example](<https://img.shields.io/badge/LangChain-Agent%20Example%20(Python)-3776AB?logo=langchain&logoColor=white>)](https://gis-mcp.com/gis-ai-agent/langchain/basic-geospatial-agent/) [![OpenAI Agent Example](<https://img.shields.io/badge/OpenAI-Agent%20Example%20(Node.js)-111827?logo=openai&logoColor=white>)](https://gis-mcp.com/gis-ai-agent/openai-nodejs/basic-geospatial-agent/)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | **Community**                | [![Discord](https://img.shields.io/badge/Discord-Community-7289DA?logo=discord&logoColor=white)](https://discord.gg/SeVmVhVbk) [![YouTube](https://img.shields.io/badge/YouTube-Tutorials-B91C1C?logo=youtube&logoColor=white)](https://www.youtube.com/@gis-mcp) [![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/mahdin75/gis-mcp)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 </div>
@@ -413,33 +413,41 @@ After configuration:
 
 ## 🤖 Build Your First GIS AI Agent
 
-Ready to create your own AI agent that can perform geospatial operations? Our comprehensive tutorial will guide you from zero to hero!
+Create agents that call **real GIS MCP tools** (not invented spatial math).
 
-### What You'll Learn
+### LangChain (Python) — park buffer proximity
 
-- ✅ How to set up the GIS MCP server in HTTP mode
-- ✅ How to build a LangChain agent from scratch
-- ✅ How to connect your agent to GIS tools
-- ✅ How to use OpenRouter to access multiple AI models (DeepSeek, Gemini, GPT-4, Claude, etc.)
-- ✅ How to customize and extend your agent
+Tutorial: **[Park buffer proximity agent](https://gis-mcp.com/gis-ai-agent/langchain/basic-geospatial-agent/)**
 
-### Get Started
+Sample: [`agents/Langchain/`](agents/Langchain/)
 
-👉 **[Follow the complete tutorial →](https://gis-mcp.com/gis-ai-agent/)**
+### LangGraph (Python) — stateful site coverage
 
-📝 **[Read the Medium article →](https://medium.com/@mahdinazari75/build-your-first-gis-ai-agent-by-gis-mcp-server-langchain-c0c1bfa36f6d)**
+Tutorial: **[Stateful site-coverage workflow](https://gis-mcp.com/gis-ai-agent/langgraph/stateful-geospatial-agent/)**
 
-🎥 **[Watch tutorials on YouTube →](https://www.youtube.com/@gis-mcp)**
+Sample: [`agents/LangGraph/`](agents/LangGraph/)
 
-The tutorial is beginner-friendly and requires no prior AI or GIS experience. You'll build a working agent that can:
+- Explicit graph: interpret → plan → execute GIS MCP tools → validate → respond
+- Verify without an LLM: `python agents/LangGraph/verify_graph.py`
 
-- Calculate distances between points
-- Transform coordinates between different systems
-- Create buffers around locations
-- Perform spatial analysis
-- And much more!
+### LangGraph (Python) — multi-agent setback
 
-**Perfect for**: Developers, data scientists, GIS professionals, and anyone interested in building AI-powered geospatial applications.
+Tutorial: **[Multi-agent setback workflow](https://gis-mcp.com/gis-ai-agent/langgraph/multi-agent-geospatial-workflow/)**
+
+- Planner / Analysis / Validation agents; only Analysis calls GIS MCP
+- Verify: `python agents/LangGraph/verify_multi_agent.py`
+
+### More agent docs
+
+👉 **[Agent tutorials overview →](https://gis-mcp.com/gis-ai-agent/)**
+
+Minimal starters: [`templates/`](templates/) (`langchain-gis-agent`, `langgraph-gis-workflow`, `langgraph-multi-agent-gis`)
+
+Also available: [OpenAI Agents SDK (Node.js)](https://gis-mcp.com/gis-ai-agent/openai-nodejs/basic-geospatial-agent/)
+
+📝 **[Medium article (LangChain intro) →](https://medium.com/@mahdinazari75/build-your-first-gis-ai-agent-by-gis-mcp-server-langchain-c0c1bfa36f6d)**
+
+🎥 **[YouTube →](https://www.youtube.com/@gis-mcp)**
 
 ## 📚 Available Functions
 

@@ -207,17 +207,18 @@ For more information on fetching external datasets (climate, ecology, movement, 
 
 ### Build Your First GIS AI Agent
 
-Ready to create your own AI agent that can perform geospatial operations? Our comprehensive tutorial will guide you from zero to hero!
+Ready to create your own AI agent that can perform geospatial operations?
 
-👉 **[Build Your First GIS AI Agent with LangChain →](/gis-ai-agent)**
+👉 **[Agent Tutorials →](/gis-ai-agent)**
+
+Start with the overview, then follow an available framework guide (LangChain or OpenAI Node.js). Foundation pages cover [agent architecture](gis-ai-agent/architecture.md), [choosing a framework](gis-ai-agent/choosing-framework.md), and [best practices](gis-ai-agent/best-practices.md).
 
 Learn how to:
 
 - Set up the GIS MCP server in HTTP mode
-- Build a LangChain agent from scratch
-- Connect your agent to GIS tools
-- Use OpenRouter to access multiple AI models (DeepSeek, Gemini, GPT-4, Claude, etc.)
-- Customize and extend your agent
+- Build a LangChain agent from scratch (or use the OpenAI Agents SDK in Node.js)
+- Connect your agent to GIS tools over MCP
+- Apply GIS-specific best practices (CRS, tool selection, validation)
 
 Perfect for developers, data scientists, and anyone interested in building AI-powered geospatial applications.
 

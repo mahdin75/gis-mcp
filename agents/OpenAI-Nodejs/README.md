@@ -2,7 +2,7 @@
 
 Welcome! This tutorial will guide you on setting up the gis-mcp server and building a Node.js agent that can perform geospatial operations.
 
-📖 **[View the complete documentation →](https://gis-mcp.com/gis-ai-agent/)**
+📖 **[View the complete documentation →](https://gis-mcp.com/gis-ai-agent/openai-nodejs/basic-geospatial-agent/)**
 
 ## 📋 Table of Contents
 
