@@ -1,0 +1,201 @@
+# GIS MCP Server (full context)
+
+Model Context Protocol server that lets AI agents run real GIS workflows
+via Shapely, GeoPandas, Rasterio, PyProj, and PySAL. Optional helpers add
+admin boundaries, climate, ecology, movement, land cover, and satellite
+imagery plus web map visualization.
+
+## Key Features
+- Rich GIS toolset: geometry ops, CRS transforms, vector/raster IO, NDVI &
+  band math, zonal stats, spatial weights & autocorrelation, clustering.
+- HTTP/SSE/STDIO transports: run locally in editors or remotely over HTTP/SSE.
+- Remote storage API: upload/download files when using HTTP/SSE.
+- Extensible: add your own tools or enable extras per workflow.
+- AI-friendly: designed to stay open/pinned so editors can feed this context
+  to MCP-aware agents (Cursor, Claude Desktop, etc.).
+
+## Quick Start (server)
+- STDIO (default): `gis-mcp`
+- HTTP: `GIS_MCP_TRANSPORT=http GIS_MCP_HOST=0.0.0.0 GIS_MCP_PORT=9010 gis-mcp`
+- SSE:  `GIS_MCP_TRANSPORT=sse  GIS_MCP_HOST=0.0.0.0 GIS_MCP_PORT=9010 gis-mcp`
+- Storage path: `GIS_MCP_STORAGE_PATH` or `--storage-path` (default `~/.gis_mcp/data`).
+- Debug logs: add `--debug`.
+- Endpoints (HTTP/SSE): MCP at `/mcp` or `/sse`, storage at `/storage`.
+
+## Install
+- Stable (recommended): `pip install gis-mcp`
+- With visualization: `pip install gis-mcp[visualize]`
+- With data extras: `pip install gis-mcp[administrative-boundaries]`,
+  `[climate]`, `[ecology]`, `[movement]`, `[land-cover]`, `[satellite-imagery]`
+  (combine as needed).
+- Docker (HTTP mode on 9010 by default):
+  - Build: `docker build -t gis-mcp .`
+  - Run:   `docker run -p 9010:9010 gis-mcp`
+
+## Capabilities Overview
+- Shapely: buffer, intersection/union/difference, centroid, bounds,
+  simplify, make_valid, nearest point, distance/area/length.
+- PyProj: coordinate transforms, project geometries, EPSG/UTM helpers,
+  geodetic distance/area.
+- GeoPandas: read/write, spatial join/overlay, dissolve, clip, explode,
+  merge, nearest join, projection helpers.
+- Rasterio: read/write GeoTIFF, crop by bbox/geometry, reproject/resample,
+  mosaic/concat bands, NDVI/band math, hillshade, focal stats, reclassify,
+  tile, zonal stats.
+- PySAL: Moran’s I/Geary’s C/Getis-Ord, local indicators, join counts,
+  weights builders (KNN/distance), spatial Markov, OLS + spatial diagnostics,
+  clustering/ADBSCAN.
+- Visualization: static map export, interactive web maps (Folium/PyDeck when
+  visualize extra installed).
+- Data helpers (extras): admin boundaries lookup, climate rasters, ecology
+  data, movement networks, land cover rasters, satellite imagery search/download.
+
+## Use in AI Editors
+- Keep this file open or pinned so MCP-aware editors include it as context.
+- Add the server command in `.cursor/mcp.json` or Claude config pointing to
+  `gis-mcp` and desired transport/port.
+
+## Documentation
+- Site: https://gis-mcp.com/
+- Getting started: https://gis-mcp.com/getting-started/
+- Install guides: https://gis-mcp.com/install/
+- HTTP transport: https://gis-mcp.com/http-transport/
+- GIS AI agent how-to: https://gis-mcp.com/gis-ai-agent/
+- API reference (Shapely/PyProj/GeoPandas/Rasterio/PySAL): https://gis-mcp.com/api/
+- Examples: https://gis-mcp.com/examples/
+- Storage config: https://gis-mcp.com/storage-configuration/
+
+## All Website Pages
+- Home: https://gis-mcp.com/
+- Getting Started: https://gis-mcp.com/getting-started/
+- Install overview: https://gis-mcp.com/install/
+- Install - Docker: https://gis-mcp.com/install/docker/
+- Install - pip: https://gis-mcp.com/install/pip/
+- Install - Developers: https://gis-mcp.com/install/developers/
+- Storage Configuration: https://gis-mcp.com/storage-configuration/
+- HTTP Transport: https://gis-mcp.com/http-transport/
+- GIS AI Agent (overview): https://gis-mcp.com/gis-ai-agent/
+- GIS AI Agent - architecture: https://gis-mcp.com/gis-ai-agent/architecture/
+- GIS AI Agent - choosing a framework: https://gis-mcp.com/gis-ai-agent/choosing-framework/
+- GIS AI Agent - best practices: https://gis-mcp.com/gis-ai-agent/best-practices/
+- GIS AI Agent - LangChain overview: https://gis-mcp.com/gis-ai-agent/langchain/
+- GIS AI Agent - LangChain basic agent: https://gis-mcp.com/gis-ai-agent/langchain/basic-geospatial-agent/
+- GIS AI Agent - LangGraph (planned): https://gis-mcp.com/gis-ai-agent/langgraph/
+- GIS AI Agent - LangGraph stateful: https://gis-mcp.com/gis-ai-agent/langgraph/stateful-geospatial-agent/
+- GIS AI Agent - LangGraph multi-agent: https://gis-mcp.com/gis-ai-agent/langgraph/multi-agent-geospatial-workflow/
+- GIS AI Agent - CrewAI (planned): https://gis-mcp.com/gis-ai-agent/crewai/
+- GIS AI Agent - CrewAI crew (coming soon): https://gis-mcp.com/gis-ai-agent/crewai/multi-agent-geospatial-crew/
+- GIS AI Agent - LlamaIndex (planned): https://gis-mcp.com/gis-ai-agent/llamaindex/
+- GIS AI Agent - LlamaIndex RAG (coming soon): https://gis-mcp.com/gis-ai-agent/llamaindex/rag-geospatial-agent/
+- GIS AI Agent - OpenAI NodeJS overview: https://gis-mcp.com/gis-ai-agent/openai-nodejs/
+- GIS AI Agent - OpenAI NodeJS basic agent: https://gis-mcp.com/gis-ai-agent/openai-nodejs/basic-geospatial-agent/
+- GIS AI Agent - Google ADK (planned): https://gis-mcp.com/gis-ai-agent/google-adk/
+- GIS AI Agent - Google ADK tutorial (coming soon): https://gis-mcp.com/gis-ai-agent/google-adk/adk-geospatial-agent/
+- Data Gathering overview: https://gis-mcp.com/data-gathering/
+- Administrative Boundaries: https://gis-mcp.com/data-gathering/administrative_boundaries/
+- Climate: https://gis-mcp.com/data-gathering/climate/
+- Ecology: https://gis-mcp.com/data-gathering/ecology/
+- Movement: https://gis-mcp.com/data-gathering/movement/
+- Satellite Imagery: https://gis-mcp.com/data-gathering/satellite_imagery/
+- Land Cover: https://gis-mcp.com/data-gathering/land_cover/
+- Analysis - Shapely overview: https://gis-mcp.com/api/shapely/
+  - buffer: https://gis-mcp.com/api/shapely/buffer/
+  - centroid: https://gis-mcp.com/api/shapely/centroid/
+  - convex hull: https://gis-mcp.com/api/shapely/convex_hull/
+  - difference: https://gis-mcp.com/api/shapely/difference/
+  - envelope: https://gis-mcp.com/api/shapely/envelope/
+  - geojson_to_geometry: https://gis-mcp.com/api/shapely/geojson_to_geometry/
+  - geometry_to_geojson: https://gis-mcp.com/api/shapely/geometry_to_geojson/
+  - get_area: https://gis-mcp.com/api/shapely/get_area/
+  - get_bounds: https://gis-mcp.com/api/shapely/get_bounds/
+  - get_coordinates: https://gis-mcp.com/api/shapely/get_coordinates/
+  - get_geometry_type: https://gis-mcp.com/api/shapely/get_geometry_type/
+  - get_length: https://gis-mcp.com/api/shapely/get_length/
+  - intersection: https://gis-mcp.com/api/shapely/intersection/
+  - is_valid: https://gis-mcp.com/api/shapely/is_valid/
+  - make_valid: https://gis-mcp.com/api/shapely/make_valid/
+  - minimum_rotated_rectangle: https://gis-mcp.com/api/shapely/minimum_rotated_rectangle/
+  - nearest_point_on_geometry: https://gis-mcp.com/api/shapely/nearest_point_on_geometry/
+  - normalize_geometry: https://gis-mcp.com/api/shapely/normalize_geometry/
+  - rotate_geometry: https://gis-mcp.com/api/shapely/rotate_geometry/
+  - scale_geometry: https://gis-mcp.com/api/shapely/scale_geometry/
+  - simplify: https://gis-mcp.com/api/shapely/simplify/
+  - snap_geometry: https://gis-mcp.com/api/shapely/snap_geometry/
+  - symmetric_difference: https://gis-mcp.com/api/shapely/symmetric_difference/
+  - translate_geometry: https://gis-mcp.com/api/shapely/translate_geometry/
+  - triangulate_geometry: https://gis-mcp.com/api/shapely/triangulate_geometry/
+  - unary_union_geometries: https://gis-mcp.com/api/shapely/unary_union_geometries/
+  - union: https://gis-mcp.com/api/shapely/union/
+  - voronoi: https://gis-mcp.com/api/shapely/voronoi/
+- Analysis - PyProj overview: https://gis-mcp.com/api/pyproj/
+  - transform_coordinates: https://gis-mcp.com/api/pyproj/transform_coordinates/
+  - project_geometry: https://gis-mcp.com/api/pyproj/project_geometry/
+  - get_crs_info: https://gis-mcp.com/api/pyproj/get_crs_info/
+  - get_available_crs: https://gis-mcp.com/api/pyproj/get_available_crs/
+  - get_utm_zone: https://gis-mcp.com/api/pyproj/get_utm_zone/
+  - get_utm_crs: https://gis-mcp.com/api/pyproj/get_utm_crs/
+  - get_geocentric_crs: https://gis-mcp.com/api/pyproj/get_geocentric_crs/
+  - get_geod_info: https://gis-mcp.com/api/pyproj/get_geod_info/
+  - calculate_geodetic_distance: https://gis-mcp.com/api/pyproj/calculate_geodetic_distance/
+  - calculate_geodetic_point: https://gis-mcp.com/api/pyproj/calculate_geodetic_point/
+  - calculate_geodetic_area: https://gis-mcp.com/api/pyproj/calculate_geodetic_area/
+- Analysis - GeoPandas overview: https://gis-mcp.com/api/geopandas/
+  - append_gpd: https://gis-mcp.com/api/geopandas/append_gpd/
+  - clip_vector: https://gis-mcp.com/api/geopandas/clip_vector/
+  - dissolve_gpd: https://gis-mcp.com/api/geopandas/dissolve_gpd/
+  - explode_gpd: https://gis-mcp.com/api/geopandas/explode_gpd/
+  - merge_gpd: https://gis-mcp.com/api/geopandas/merge_gpd/
+  - overlay_gpd: https://gis-mcp.com/api/geopandas/overlay_gpd/
+  - point_in_polygon: https://gis-mcp.com/api/geopandas/point_in_polygon/
+  - read_file_gpd: https://gis-mcp.com/api/geopandas/read_file_gpd/
+  - sjoin_gpd: https://gis-mcp.com/api/geopandas/sjoin_gpd/
+  - sjoin_nearest_gpd: https://gis-mcp.com/api/geopandas/sjoin_nearest_gpd/
+  - to_file_gpd: https://gis-mcp.com/api/geopandas/to_file_gpd/
+  - write_file_gpd: https://gis-mcp.com/api/geopandas/write_file_gpd/
+- Analysis - Rasterio overview: https://gis-mcp.com/api/rasterio/
+  - clip_raster_with_shapefile: https://gis-mcp.com/api/rasterio/clip_raster_with_shapefile/
+  - compute_ndvi: https://gis-mcp.com/api/rasterio/compute_ndvi/
+  - concat_bands: https://gis-mcp.com/api/rasterio/concat_bands/
+  - extract_band: https://gis-mcp.com/api/rasterio/extract_band/
+  - focal_statistics: https://gis-mcp.com/api/rasterio/focal_statistics/
+  - get_raster_crs: https://gis-mcp.com/api/rasterio/get_raster_crs/
+  - hillshade: https://gis-mcp.com/api/rasterio/hillshade/
+  - metadata_raster: https://gis-mcp.com/api/rasterio/metadata_raster/
+  - raster_algebra: https://gis-mcp.com/api/rasterio/raster_algebra/
+  - raster_band_statistics: https://gis-mcp.com/api/rasterio/raster_band_statistics/
+  - raster_histogram: https://gis-mcp.com/api/rasterio/raster_histogram/
+  - reclassify_raster: https://gis-mcp.com/api/rasterio/reclassify_raster/
+  - reproject_raster: https://gis-mcp.com/api/rasterio/reproject_raster/
+  - resample_raster: https://gis-mcp.com/api/rasterio/resample_raster/
+  - tile_raster: https://gis-mcp.com/api/rasterio/tile_raster/
+  - weighted_band_sum: https://gis-mcp.com/api/rasterio/weighted_band_sum/
+  - write_raster: https://gis-mcp.com/api/rasterio/write_raster/
+  - zonal_statistics: https://gis-mcp.com/api/rasterio/zonal_statistics/
+- Analysis - PySAL overview: https://gis-mcp.com/api/pysal/
+  - morans_i: https://gis-mcp.com/api/pysal/morans_i/
+  - gearys_c: https://gis-mcp.com/api/pysal/gearys_c/
+  - getis_ord_g: https://gis-mcp.com/api/pysal/getis_ord_g/
+  - moran_local: https://gis-mcp.com/api/pysal/moran_local/
+  - gamma_statistic: https://gis-mcp.com/api/pysal/gamma_statistic/
+  - getis_ord_g_local: https://gis-mcp.com/api/pysal/getis_ord_g_local/
+  - join_counts: https://gis-mcp.com/api/pysal/join_counts/
+  - join_counts_local: https://gis-mcp.com/api/pysal/join_counts_local/
+  - adbscan: https://gis-mcp.com/api/pysal/adbscan/
+  - build_and_transform_weights: https://gis-mcp.com/api/pysal/build_and_transform_weights/
+  - build_transform_and_save_weights: https://gis-mcp.com/api/pysal/build_transform_and_save_weights/
+  - distance_band_weights: https://gis-mcp.com/api/pysal/distance_band_weights/
+  - knn_weights: https://gis-mcp.com/api/pysal/knn_weights/
+  - ols_with_spatial_diagnostics_safe: https://gis-mcp.com/api/pysal/ols_with_spatial_diagnostics_safe/
+  - weights_from_shapefile: https://gis-mcp.com/api/pysal/weights_from_shapefile/
+  - spatial_markov: https://gis-mcp.com/api/pysal/spatial_markov/
+  - dynamic_lisa: https://gis-mcp.com/api/pysal/dynamic_lisa/
+  - gm_lag: https://gis-mcp.com/api/pysal/gm_lag/
+- Visualization overview: https://gis-mcp.com/api/visualize/
+  - static map: https://gis-mcp.com/api/visualize/create_map/
+  - web map: https://gis-mcp.com/api/visualize/create_web_map/
+- Examples overview: https://gis-mcp.com/examples/
+- Example - basic spatial analysis (Claude): https://gis-mcp.com/examples/basic_spatial_analysis_claude/
+- Example - CRS, area & distance: https://gis-mcp.com/examples/crs_area_distance_analysis/
+- Contributing: https://gis-mcp.com/contributing/
+- Related MCP servers: https://gis-mcp.com/related-mcp-servers/
+- Support/Discord: https://discord.gg/dzkXZsZK
