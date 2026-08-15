@@ -41,7 +41,7 @@ Ask these questions before you commit:
 
 - **Strengths:** Explicit `StateGraph`, stored plan, validation gate, error branch—better for repeatable GIS pipelines than a free-form agent. Multi-agent tutorial separates Planner / Analysis / Validation for setback-style work.
 - **Transport used in sample:** `streamable_http` to `/mcp`.
-- **Start:** [LangGraph tutorials](langgraph/README.md) → [Stateful site-coverage](langgraph/stateful-geospatial-agent.md) · [Multi-agent setback](langgraph/multi-agent-geospatial-workflow.md).
+- **Start:** [LangGraph tutorials](langgraph/README.md) → [Stateful site-coverage](langgraph/stateful-geospatial-agent.md) · [Multi-agent setback](langgraph/multi-agent-geospatial-workflow.md) · [File-based site suitability](langgraph/file-based-site-suitability.md).
 
 ## Planned (not implemented yet)
 

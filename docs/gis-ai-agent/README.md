@@ -75,7 +75,7 @@ Full walkthroughs remain under the framework sections below. Runnable reference 
 | Framework | Status | Entry point |
 | --------- | ------ | ----------- |
 | [LangChain (Python)](langchain/README.md) | Available | [Park buffer proximity agent](langchain/basic-geospatial-agent.md) |
-| [LangGraph (Python)](langgraph/README.md) | Available | [Stateful site-coverage](langgraph/stateful-geospatial-agent.md) · [Multi-agent setback](langgraph/multi-agent-geospatial-workflow.md) |
+| [LangGraph (Python)](langgraph/README.md) | Available | [Stateful site-coverage](langgraph/stateful-geospatial-agent.md) · [Multi-agent setback](langgraph/multi-agent-geospatial-workflow.md) · [File-based site suitability](langgraph/file-based-site-suitability.md) |
 | [OpenAI Agents SDK (Node.js)](openai-nodejs/README.md) | Available | [Basic geospatial agent](openai-nodejs/basic-geospatial-agent.md) |
 
 Runnable sample projects also live in the repository under [`agents/`](https://github.com/mahdin75/gis-mcp/tree/main/agents).
@@ -129,7 +129,7 @@ Desktop MCP clients (Claude Desktop, Cursor) typically use **stdio** instead of 
 
 - [Architecture](../architecture.md) — server components and transports
 - [Workflow examples](../examples/README.md) — Claude-oriented geospatial workflows you can reuse as agent test prompts
-- [Vibe coding](../vibe-coding.md) — `llms.txt` / `llms-full.txt` for AI coding assistants
+- [Vibe coding](../vibe-coding.md) — [llms.txt](https://gis-mcp.com/llms.txt) / [llms-full.txt](https://gis-mcp.com/llms-full.txt) for AI coding assistants
 - [API reference](../data-gathering/README.md) — tools by category
 
 ## Need help?

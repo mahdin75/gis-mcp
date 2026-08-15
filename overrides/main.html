@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+
+{% block extrahead %}
+  {{ super() }}
+  <link rel="alternate" type="text/markdown" title="LLM summary (llms.txt)" href="{{ config.site_url.rstrip('/') }}/llms.txt">
+  <link rel="alternate" type="text/markdown" title="LLM full documentation (llms-full.txt)" href="{{ config.site_url.rstrip('/') }}/llms-full.txt">
+{% endblock %}

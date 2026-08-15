@@ -1,39 +1,58 @@
-# GIS MCP Server (summary)
+# GIS MCP Server
 
-Use this as concise context for LLMs about GIS MCP.
+> GIS MCP is an open-source Model Context Protocol server for GIS/geospatial analysis and AI agents.
 
-- What: MCP server exposing Shapely, GeoPandas, Rasterio, PyProj, PySAL
-  plus optional data helpers (admin boundaries, climate, ecology, movement,
-  land cover, satellite imagery) and visualization.
-- Transports: stdio (default), HTTP, SSE. Endpoints (HTTP/SSE): `/mcp` or
-  `/sse` and `/storage`. Storage path env/flag: `GIS_MCP_STORAGE_PATH` or
-  `--storage-path` (default `~/.gis_mcp/data`). `--debug` enables verbose logs.
-- Quick start: `gis-mcp` (stdio) | `GIS_MCP_TRANSPORT=http ... gis-mcp` |
-  `GIS_MCP_TRANSPORT=sse ... gis-mcp`.
-- Install: `pip install gis-mcp`; extras `[...]` for visualize,
-  administrative-boundaries, climate, ecology, movement, land-cover,
-  satellite-imagery. Docker: build `docker build -t gis-mcp .`, run
-  `docker run -p 9010:9010 gis-mcp` (HTTP mode on 9010).
-- Capabilities:
-  - Shapely geometry ops, buffering, overlays, validation, length/area/dist.
-  - PyProj CRS transforms, EPSG/UTM helpers, geodetic distance/area.
-  - GeoPandas vector IO, spatial join/overlay, dissolve/clip, nearest.
-  - Rasterio raster IO, crop/reproject/resample/mosaic, NDVI, hillshade,
-    focal stats, reclassify, tile, zonal stats.
-  - PySAL spatial stats (Moran’s/Geary/Getis-Ord), weights, Markov, OLS+diag.
-  - Visualization static/export and interactive web maps (Folium/PyDeck).
-- Agents: GIS MCP is the geospatial tool layer for agent frameworks (MCP client
-  → GIS MCP → tools). Docs: https://gis-mcp.com/gis-ai-agent/
-  - Templates: templates/langchain-gis-agent, templates/langgraph-gis-workflow,
-    templates/langgraph-multi-agent-gis
-  - LangChain park-buffer: https://gis-mcp.com/gis-ai-agent/langchain/basic-geospatial-agent/
-    (agents/Langchain/; verify_tools.py)
-  - LangGraph stateful coverage: https://gis-mcp.com/gis-ai-agent/langgraph/stateful-geospatial-agent/
-    (agents/LangGraph/; verify_graph.py)
-  - LangGraph multi-agent setback: https://gis-mcp.com/gis-ai-agent/langgraph/multi-agent-geospatial-workflow/
-    (multi_agent_workflow.py; verify_multi_agent.py)
-  - OpenAI Node tutorial available. CrewAI, LlamaIndex, and Google ADK are
-    not documented and should not be treated as supported integrations.
+Install with `pip install gis-mcp`. Default transport is STDIO (`gis-mcp`).
+HTTP and SSE are also supported (`/mcp` or `/sse`; storage at `/storage`).
+Docker serves HTTP on port 9010. Optional extras: `[visualize]`,
+`[administrative-boundaries]`, `[climate]`, `[ecology]`, `[movement]`,
+`[land-cover]`, `[satellite-imagery]`, `[gcp]`.
 
-Docs: https://gis-mcp.com/
-Full context: see `llms-full.txt`.
+GIS MCP exposes Shapely, GeoPandas, Rasterio, PyProj, and PySAL as MCP
+tools so agents run real geospatial operations instead of invented math.
+
+## Start here
+
+- [Home](https://gis-mcp.com/): Open-source MCP server that connects GIS libraries (Shapely, PyProj, GeoPandas, Rasterio, PySAL) to LLMs.
+- [Getting started](https://gis-mcp.com/getting-started/): This guide helps you install and run the GIS MCP Server quickly using pip (with uv) and shows how to connect it to your IDE/client.
+- [Architecture](https://gis-mcp.com/architecture/): This page explains where GIS MCP Server sits in agentic AI apps and how the server is structured inside. Diagrams live here (not in the GitHub README) so the docs stay the place...
+- [Install](https://gis-mcp.com/install/): Pick the path that matches your setup:
+- [Vibe coding](https://gis-mcp.com/vibe-coding/): GIS MCP is an open-source Model Context Protocol server for GIS/geospatial analysis and AI agents. If you develop agents via vibe coding, give the model these machine-readable m...
+
+## GIS AI agents
+
+- [GIS AI agent overview](https://gis-mcp.com/gis-ai-agent/): Build AI agents that perform real geospatial work by connecting an agent framework to GIS MCP Server.
+- [Agent architecture](https://gis-mcp.com/gis-ai-agent/architecture/): This page describes how GIS-enabled agents use GIS MCP Server. For the server’s internal components (tool modules, storage adapters, transports), also see the project Architectu...
+- [Choosing a framework](https://gis-mcp.com/gis-ai-agent/choosing-framework/): GIS MCP Server is framework-agnostic: any runtime that can act as an MCP client can call its tools. This page helps you pick a tutorial path and avoid frameworks that are a poor...
+- [Best practices](https://gis-mcp.com/gis-ai-agent/best-practices/): Guidance for building reliable agents on top of GIS MCP Server. Practices below assume the current product model: GIS MCP exposes MCP tools; your agent framework owns planning,...
+- [LangChain park-buffer agent](https://gis-mcp.com/gis-ai-agent/langchain/basic-geospatial-agent/): Build a small LangChain agent that uses GIS MCP Server tools to answer a real planning question: *does a proposed building fall within 100 meters of a park?*
+- [LangGraph stateful agent](https://gis-mcp.com/gis-ai-agent/langgraph/stateful-geospatial-agent/): Build a stateful LangGraph pipeline that answers: *is a school within a 400 m walking buffer of a transit stop?*
+- [LangGraph multi-agent workflow](https://gis-mcp.com/gis-ai-agent/langgraph/multi-agent-geospatial-workflow/): A practical three-agent LangGraph pipeline for a river setback compliance check. Agents have separated jobs; only one of them calls GIS MCP.
+- [LangGraph file-based site suitability](https://gis-mcp.com/gis-ai-agent/langgraph/file-based-site-suitability/): A layer-based LangGraph pattern on GIS MCP: clip → overlay → CRS-safe buffer → spatial join → map.
+- [OpenAI Agents SDK (Node.js)](https://gis-mcp.com/gis-ai-agent/openai-nodejs/basic-geospatial-agent/): Welcome! This tutorial will guide you on setting up the gis-mcp server and building a Node.js agent that can perform geospatial operations.
+
+## Configuration
+
+- [HTTP transport](https://gis-mcp.com/http-transport/): The GIS MCP server now supports both STDIO and HTTP transport modes, making it flexible for different deployment scenarios.
+- [Storage configuration](https://gis-mcp.com/storage-configuration/): The GIS MCP Server stores files used for reading, writing, and downloading geospatial data. Two storage backends are supported:
+- [Server endpoints](https://gis-mcp.com/endpoints/): When running the GIS MCP server in HTTP or SSE transport mode, the following endpoints are available:
+
+## API overviews
+
+- [Data gathering](https://gis-mcp.com/data-gathering/): This section explains how to fetch external datasets with GIS-MCP. Currently covered:
+- [Shapely](https://gis-mcp.com/api/shapely/): High-level geometric operations exposed via MCP. All tools accept and return geometries as WKT strings.
+- [PyProj](https://gis-mcp.com/api/pyproj/): Coordinate reference system utilities and geodetic calculations.
+- [GeoPandas](https://gis-mcp.com/api/geopandas/): I/O and attribute-join helpers for vector data.
+- [Rasterio](https://gis-mcp.com/api/rasterio/): Raster I/O, processing, and analysis.
+- [PySAL](https://gis-mcp.com/api/pysal/): Spatial autocorrelation and clustering tools powered by PySAL/ESDA.
+- [Visualization](https://gis-mcp.com/api/visualize/): The visualization module provides tools for creating both static and interactive maps from geospatial data. This module requires the [visualize] extra to be installed.
+
+## Optional
+
+- [Full LLM context](https://gis-mcp.com/llms-full.txt): Complete page and tool inventory
+- [Examples](https://gis-mcp.com/examples/): This section contains practical, step-by-step examples for using GIS MCP Server in real-world geospatial workflows. Each example includes prompts, actions, and video tutorials t...
+- [Contributing](https://gis-mcp.com/contributing/): Thank you for your interest in contributing to GIS MCP Server! We welcome issues, ideas, docs, and code.
+- [Related MCP servers](https://gis-mcp.com/related-mcp-servers/): This page lists other MCP servers that complement GIS MCP Server and can be used together to build comprehensive geospatial AI workflows.
+- [CrewAI](https://gis-mcp.com/gis-ai-agent/crewai/): Tutorial not published yet
+- [LlamaIndex](https://gis-mcp.com/gis-ai-agent/llamaindex/): Tutorial not published yet
+- [Google ADK](https://gis-mcp.com/gis-ai-agent/google-adk/): Tutorial not published yet

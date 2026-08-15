@@ -120,10 +120,12 @@ Full setup (paths, IAM, Docker, credentials): [Storage Configuration](https://gi
 
 ## Vibe Coding
 
-If you’re building agents via vibe coding, use these context files in your editor so the LLM understands the GIS MCP server:
+If you’re building agents via vibe coding, give the model these generated maps of GIS MCP:
 
-- `llms.txt`: summarized context for smaller windows.
-- `llms-full.txt`: full context when your model has a larger window.
+- [`llms.txt`](https://gis-mcp.com/llms.txt): curated summary for smaller windows.
+- [`llms-full.txt`](https://gis-mcp.com/llms-full.txt): full documentation map for larger windows.
+
+Copies also live in the repository root (`llms.txt`, `llms-full.txt`). They are regenerated from the docs during the MkDocs build.
 
 ## 🛠 Installation
 

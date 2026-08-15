@@ -1,11 +1,12 @@
 site_name: GIS MCP Server
-site_description: Model Context Protocol server for GIS operations
+site_description: GIS MCP is an open-source Model Context Protocol server for GIS/geospatial analysis and AI agents.
 site_url: https://gis-mcp.com
 repo_name: mahdin75/gis-mcp
 repo_url: https://github.com/mahdin75/gis-mcp
 
 theme:
   name: material
+  custom_dir: overrides
   features:
     - navigation.top
     - navigation.sections
@@ -43,6 +44,7 @@ nav:
               - Overview: gis-ai-agent/langgraph/README.md
               - Stateful geospatial agent: gis-ai-agent/langgraph/stateful-geospatial-agent.md
               - Multi-agent geospatial workflow: gis-ai-agent/langgraph/multi-agent-geospatial-workflow.md
+              - File-based site suitability: gis-ai-agent/langgraph/file-based-site-suitability.md
           - CrewAI:
               - Overview: gis-ai-agent/crewai/README.md
               - Multi-agent geospatial crew: gis-ai-agent/crewai/multi-agent-geospatial-crew.md
@@ -170,11 +172,16 @@ nav:
           - Overview: examples/README.md
           - Basic Spatial Analysis (claude): examples/basic_spatial_analysis_claude.md
           - CRS, Area & Distance Analysis: examples/crs_area_distance_analysis.md
+          - Movement Analysis: examples/movement_example.md
+          - Climate Data: examples/climate_data_example.md
       - Contributing: contributing.md
       - Related MCP Servers: related-mcp-servers.md
   - Support:
       - Link to Discord: https://discord.gg/dzkXZsZK
       - Link to GitHub issues: https://github.com/mahdin75/gis-mcp/issues
+
+hooks:
+  - scripts/generate_llms.py
 
 plugins:
   - search

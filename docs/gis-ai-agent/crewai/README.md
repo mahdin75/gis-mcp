@@ -20,7 +20,7 @@ CrewAI is a **Tier 1** documentation target for multi-agent orchestration (for e
 - Your workflow splits naturally across fetch → analyze → map/report.
 - You accept pinning CrewAI versions and retesting MCP integration periodically.
 
-Until this tutorial ships, use a [single LangChain agent](../langchain/basic-geospatial-agent.md) or wait for [LangGraph](../langgraph/README.md) for structured multi-step flows.
+Until this tutorial ships, use a [single LangChain agent](../langchain/basic-geospatial-agent.md) or the [LangGraph](../langgraph/README.md) tutorials for structured multi-step flows.
 
 ## Prerequisites (expected)
 
