@@ -1,0 +1,39 @@
+# GIS MCP Server (summary)
+
+Use this as concise context for LLMs about GIS MCP.
+
+- What: MCP server exposing Shapely, GeoPandas, Rasterio, PyProj, PySAL
+  plus optional data helpers (admin boundaries, climate, ecology, movement,
+  land cover, satellite imagery) and visualization.
+- Transports: stdio (default), HTTP, SSE. Endpoints (HTTP/SSE): `/mcp` or
+  `/sse` and `/storage`. Storage path env/flag: `GIS_MCP_STORAGE_PATH` or
+  `--storage-path` (default `~/.gis_mcp/data`). `--debug` enables verbose logs.
+- Quick start: `gis-mcp` (stdio) | `GIS_MCP_TRANSPORT=http ... gis-mcp` |
+  `GIS_MCP_TRANSPORT=sse ... gis-mcp`.
+- Install: `pip install gis-mcp`; extras `[...]` for visualize,
+  administrative-boundaries, climate, ecology, movement, land-cover,
+  satellite-imagery. Docker: build `docker build -t gis-mcp .`, run
+  `docker run -p 9010:9010 gis-mcp` (HTTP mode on 9010).
+- Capabilities:
+  - Shapely geometry ops, buffering, overlays, validation, length/area/dist.
+  - PyProj CRS transforms, EPSG/UTM helpers, geodetic distance/area.
+  - GeoPandas vector IO, spatial join/overlay, dissolve/clip, nearest.
+  - Rasterio raster IO, crop/reproject/resample/mosaic, NDVI, hillshade,
+    focal stats, reclassify, tile, zonal stats.
+  - PySAL spatial stats (Moran’s/Geary/Getis-Ord), weights, Markov, OLS+diag.
+  - Visualization static/export and interactive web maps (Folium/PyDeck).
+- Agents: GIS MCP is the geospatial tool layer for agent frameworks (MCP client
+  → GIS MCP → tools). Docs: https://gis-mcp.com/gis-ai-agent/
+  - Templates: templates/langchain-gis-agent, templates/langgraph-gis-workflow,
+    templates/langgraph-multi-agent-gis
+  - LangChain park-buffer: https://gis-mcp.com/gis-ai-agent/langchain/basic-geospatial-agent/
+    (agents/Langchain/; verify_tools.py)
+  - LangGraph stateful coverage: https://gis-mcp.com/gis-ai-agent/langgraph/stateful-geospatial-agent/
+    (agents/LangGraph/; verify_graph.py)
+  - LangGraph multi-agent setback: https://gis-mcp.com/gis-ai-agent/langgraph/multi-agent-geospatial-workflow/
+    (multi_agent_workflow.py; verify_multi_agent.py)
+  - OpenAI Node tutorial available. CrewAI, LlamaIndex, and Google ADK are
+    not documented and should not be treated as supported integrations.
+
+Docs: https://gis-mcp.com/
+Full context: see `llms-full.txt`.
