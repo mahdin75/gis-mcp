@@ -25,6 +25,9 @@ jobs:
         run: |
           pip install mkdocs mkdocs-material
 
+      - name: Generate LLM discovery files
+        run: python scripts/generate_llms.py
+
       - name: Build and Deploy to gh-pages
         run: |
           mkdocs gh-deploy --force

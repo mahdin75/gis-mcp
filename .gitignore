@@ -122,5 +122,8 @@ agents/OpenAI-Node/node_modules/
 # Local planning (not for git)
 TODO.local.md
 
+# Local Medium / LinkedIn drafts (copy-paste; not shipped with the package)
+medium-drafts/
+
 # uv
 uv.lock

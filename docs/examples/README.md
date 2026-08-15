@@ -36,4 +36,4 @@ This section contains practical, step-by-step examples for using GIS MCP Server 
     - **[LangGraph (Python)](../gis-ai-agent/langgraph/stateful-geospatial-agent.md)**: Stateful interpret → plan → execute → validate → respond (transit-stop coverage).
     - **[LangGraph multi-agent](../gis-ai-agent/langgraph/multi-agent-geospatial-workflow.md)**: Planner + Analysis + Validation for river setback compliance.
     - **[OpenAI (Node.js)](../gis-ai-agent/openai-nodejs/basic-geospatial-agent.md)**: JavaScript/TypeScript developers using OpenAI's Agent SDK.
-  - Planned framework sections (stubs): LangGraph, CrewAI, LlamaIndex, Google ADK — see [Choosing an agent framework](../gis-ai-agent/choosing-framework.md).
+  - Planned framework tutorials (stubs): CrewAI, LlamaIndex, Google ADK — see [Choosing an agent framework](../gis-ai-agent/choosing-framework.md).

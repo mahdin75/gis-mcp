@@ -6,7 +6,7 @@ Google Agent Development Kit (ADK) with GIS MCP Server as an MCP tool backend.
 
 **Planned / evaluate on demand** — no tutorial yet.
 
-Google ADK is a **Tier 2** documentation candidate: useful for teams already on Google’s agent stack, with possible operational overlap if you use GIS MCP’s **GCS** storage backend. It is not in the first implementation wave (LangGraph, CrewAI, LlamaIndex).
+Google ADK is a **Tier 2** documentation candidate: useful for teams already on Google’s agent stack, with possible operational overlap if you use GIS MCP’s **GCS** storage backend. It is not in the first implementation wave (CrewAI, LlamaIndex).
 
 ## Planned tutorials
 

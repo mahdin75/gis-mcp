@@ -4,7 +4,8 @@ Stateful and multi-agent GIS workflows on top of GIS MCP Server.
 
 ## Status
 
-**Available** — single stateful pipeline + practical three-agent setback workflow.
+**Available** — stateful pipeline, three-agent setback workflow, and a file-based site-suitability pattern.
+
 
 ## Tutorials
 
@@ -12,6 +13,7 @@ Stateful and multi-agent GIS workflows on top of GIS MCP Server.
 | -------- | ------ | ----------- |
 | [Stateful geospatial agent](stateful-geospatial-agent.md) | Available | interpret → plan → execute → validate → respond |
 | [Multi-agent geospatial workflow](multi-agent-geospatial-workflow.md) | Available | Planner + Analysis + Validation (setback compliance) |
+| [File-based site suitability](file-based-site-suitability.md) | Available | Clip / overlay / CRS-safe buffer / join / map (GeoJSON layers) |
 
 ## Sample code
 
@@ -35,6 +37,9 @@ python multi_agent_workflow.py --demo
 - Separated Planner / Analysis / Validation when auditability matters
 
 Prefer a simpler [LangChain agent](../langchain/basic-geospatial-agent.md) for short exploratory Q&A.
+
+For **GeoJSON layers** (clip, overlay, park buffer, map), see [file-based site suitability](file-based-site-suitability.md). That pattern is written up as a Medium continuation of the [LangChain intro](https://medium.com/@mahdinazari75/build-your-first-gis-ai-agent-by-gis-mcp-server-langchain-c0c1bfa36f6d).
+
 
 ## Related
 

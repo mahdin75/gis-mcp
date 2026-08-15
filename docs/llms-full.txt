@@ -1,201 +1,208 @@
-# GIS MCP Server (full context)
+# GIS MCP Server
 
-Model Context Protocol server that lets AI agents run real GIS workflows
-via Shapely, GeoPandas, Rasterio, PyProj, and PySAL. Optional helpers add
-admin boundaries, climate, ecology, movement, land cover, and satellite
-imagery plus web map visualization.
+> GIS MCP is an open-source Model Context Protocol server for GIS/geospatial analysis and AI agents.
 
-## Key Features
-- Rich GIS toolset: geometry ops, CRS transforms, vector/raster IO, NDVI &
-  band math, zonal stats, spatial weights & autocorrelation, clustering.
-- HTTP/SSE/STDIO transports: run locally in editors or remotely over HTTP/SSE.
-- Remote storage API: upload/download files when using HTTP/SSE.
-- Extensible: add your own tools or enable extras per workflow.
-- AI-friendly: designed to stay open/pinned so editors can feed this context
-  to MCP-aware agents (Cursor, Claude Desktop, etc.).
+GIS MCP (GIS MCP Server) lets AI agents run real GIS workflows through
+Shapely, GeoPandas, Rasterio, PyProj, and PySAL. Optional helpers add
+administrative boundaries, climate, ecology, movement, land cover,
+satellite imagery, visualization, and Google Cloud Storage.
 
-## Quick Start (server)
-- STDIO (default): `gis-mcp`
-- HTTP: `GIS_MCP_TRANSPORT=http GIS_MCP_HOST=0.0.0.0 GIS_MCP_PORT=9010 gis-mcp`
-- SSE:  `GIS_MCP_TRANSPORT=sse  GIS_MCP_HOST=0.0.0.0 GIS_MCP_PORT=9010 gis-mcp`
-- Storage path: `GIS_MCP_STORAGE_PATH` or `--storage-path` (default `~/.gis_mcp/data`).
-- Debug logs: add `--debug`.
-- Endpoints (HTTP/SSE): MCP at `/mcp` or `/sse`, storage at `/storage`.
+## About
 
-## Install
-- Stable (recommended): `pip install gis-mcp`
-- With visualization: `pip install gis-mcp[visualize]`
-- With data extras: `pip install gis-mcp[administrative-boundaries]`,
-  `[climate]`, `[ecology]`, `[movement]`, `[land-cover]`, `[satellite-imagery]`
-  (combine as needed).
-- Docker (HTTP mode on 9010 by default):
-  - Build: `docker build -t gis-mcp .`
-  - Run:   `docker run -p 9010:9010 gis-mcp`
-
-## Capabilities Overview
-- Shapely: buffer, intersection/union/difference, centroid, bounds,
-  simplify, make_valid, nearest point, distance/area/length.
-- PyProj: coordinate transforms, project geometries, EPSG/UTM helpers,
-  geodetic distance/area.
-- GeoPandas: read/write, spatial join/overlay, dissolve, clip, explode,
-  merge, nearest join, projection helpers.
-- Rasterio: read/write GeoTIFF, crop by bbox/geometry, reproject/resample,
-  mosaic/concat bands, NDVI/band math, hillshade, focal stats, reclassify,
-  tile, zonal stats.
-- PySAL: Moran’s I/Geary’s C/Getis-Ord, local indicators, join counts,
-  weights builders (KNN/distance), spatial Markov, OLS + spatial diagnostics,
-  clustering/ADBSCAN.
-- Visualization: static map export, interactive web maps (Folium/PyDeck when
-  visualize extra installed).
-- Data helpers (extras): admin boundaries lookup, climate rasters, ecology
-  data, movement networks, land cover rasters, satellite imagery search/download.
-
-## Use in AI Editors
-- Keep this file open or pinned so MCP-aware editors include it as context.
-- Add the server command in `.cursor/mcp.json` or Claude config pointing to
-  `gis-mcp` and desired transport/port.
-
-## Documentation
+- GIS MCP is an open-source Model Context Protocol server for GIS/geospatial analysis and AI agents.
+- Install: `pip install gis-mcp` (Python 3.10+). Optional extras: `[visualize]`, `[administrative-boundaries]`, `[climate]`, `[ecology]`, `[movement]`, `[land-cover]`, `[satellite-imagery]`, `[gcp]`, or `[all]`.
+- Transports: STDIO (default, `gis-mcp`), HTTP, SSE.
+- HTTP/SSE endpoints: `/mcp` or `/sse`; storage API at `/storage`.
+- Storage: `GIS_MCP_STORAGE_PATH` / `--storage-path` (default `~/.gis_mcp/data`), or GCS via `[gcp]`.
+- Docker: `docker build -t gis-mcp .` then `docker run -p 9010:9010 gis-mcp` (HTTP on 9010).
+- Debug logs: `--debug`.
 - Site: https://gis-mcp.com/
-- Getting started: https://gis-mcp.com/getting-started/
-- Install guides: https://gis-mcp.com/install/
-- HTTP transport: https://gis-mcp.com/http-transport/
-- GIS AI agent how-to: https://gis-mcp.com/gis-ai-agent/
-- API reference (Shapely/PyProj/GeoPandas/Rasterio/PySAL): https://gis-mcp.com/api/
-- Examples: https://gis-mcp.com/examples/
-- Storage config: https://gis-mcp.com/storage-configuration/
+- Summary for small context windows: https://gis-mcp.com/llms.txt
 
-## All Website Pages
-- Home: https://gis-mcp.com/
-- Getting Started: https://gis-mcp.com/getting-started/
-- Install overview: https://gis-mcp.com/install/
-- Install - Docker: https://gis-mcp.com/install/docker/
-- Install - pip: https://gis-mcp.com/install/pip/
-- Install - Developers: https://gis-mcp.com/install/developers/
-- Storage Configuration: https://gis-mcp.com/storage-configuration/
-- HTTP Transport: https://gis-mcp.com/http-transport/
-- GIS AI Agent (overview): https://gis-mcp.com/gis-ai-agent/
-- GIS AI Agent - architecture: https://gis-mcp.com/gis-ai-agent/architecture/
-- GIS AI Agent - choosing a framework: https://gis-mcp.com/gis-ai-agent/choosing-framework/
-- GIS AI Agent - best practices: https://gis-mcp.com/gis-ai-agent/best-practices/
-- GIS AI Agent - LangChain overview: https://gis-mcp.com/gis-ai-agent/langchain/
-- GIS AI Agent - LangChain basic agent: https://gis-mcp.com/gis-ai-agent/langchain/basic-geospatial-agent/
-- GIS AI Agent - LangGraph (planned): https://gis-mcp.com/gis-ai-agent/langgraph/
-- GIS AI Agent - LangGraph stateful: https://gis-mcp.com/gis-ai-agent/langgraph/stateful-geospatial-agent/
-- GIS AI Agent - LangGraph multi-agent: https://gis-mcp.com/gis-ai-agent/langgraph/multi-agent-geospatial-workflow/
-- GIS AI Agent - CrewAI (planned): https://gis-mcp.com/gis-ai-agent/crewai/
-- GIS AI Agent - CrewAI crew (coming soon): https://gis-mcp.com/gis-ai-agent/crewai/multi-agent-geospatial-crew/
-- GIS AI Agent - LlamaIndex (planned): https://gis-mcp.com/gis-ai-agent/llamaindex/
-- GIS AI Agent - LlamaIndex RAG (coming soon): https://gis-mcp.com/gis-ai-agent/llamaindex/rag-geospatial-agent/
-- GIS AI Agent - OpenAI NodeJS overview: https://gis-mcp.com/gis-ai-agent/openai-nodejs/
-- GIS AI Agent - OpenAI NodeJS basic agent: https://gis-mcp.com/gis-ai-agent/openai-nodejs/basic-geospatial-agent/
-- GIS AI Agent - Google ADK (planned): https://gis-mcp.com/gis-ai-agent/google-adk/
-- GIS AI Agent - Google ADK tutorial (coming soon): https://gis-mcp.com/gis-ai-agent/google-adk/adk-geospatial-agent/
-- Data Gathering overview: https://gis-mcp.com/data-gathering/
-- Administrative Boundaries: https://gis-mcp.com/data-gathering/administrative_boundaries/
-- Climate: https://gis-mcp.com/data-gathering/climate/
-- Ecology: https://gis-mcp.com/data-gathering/ecology/
-- Movement: https://gis-mcp.com/data-gathering/movement/
-- Satellite Imagery: https://gis-mcp.com/data-gathering/satellite_imagery/
-- Land Cover: https://gis-mcp.com/data-gathering/land_cover/
-- Analysis - Shapely overview: https://gis-mcp.com/api/shapely/
-  - buffer: https://gis-mcp.com/api/shapely/buffer/
-  - centroid: https://gis-mcp.com/api/shapely/centroid/
-  - convex hull: https://gis-mcp.com/api/shapely/convex_hull/
-  - difference: https://gis-mcp.com/api/shapely/difference/
-  - envelope: https://gis-mcp.com/api/shapely/envelope/
-  - geojson_to_geometry: https://gis-mcp.com/api/shapely/geojson_to_geometry/
-  - geometry_to_geojson: https://gis-mcp.com/api/shapely/geometry_to_geojson/
-  - get_area: https://gis-mcp.com/api/shapely/get_area/
-  - get_bounds: https://gis-mcp.com/api/shapely/get_bounds/
-  - get_coordinates: https://gis-mcp.com/api/shapely/get_coordinates/
-  - get_geometry_type: https://gis-mcp.com/api/shapely/get_geometry_type/
-  - get_length: https://gis-mcp.com/api/shapely/get_length/
-  - intersection: https://gis-mcp.com/api/shapely/intersection/
-  - is_valid: https://gis-mcp.com/api/shapely/is_valid/
-  - make_valid: https://gis-mcp.com/api/shapely/make_valid/
-  - minimum_rotated_rectangle: https://gis-mcp.com/api/shapely/minimum_rotated_rectangle/
-  - nearest_point_on_geometry: https://gis-mcp.com/api/shapely/nearest_point_on_geometry/
-  - normalize_geometry: https://gis-mcp.com/api/shapely/normalize_geometry/
-  - rotate_geometry: https://gis-mcp.com/api/shapely/rotate_geometry/
-  - scale_geometry: https://gis-mcp.com/api/shapely/scale_geometry/
-  - simplify: https://gis-mcp.com/api/shapely/simplify/
-  - snap_geometry: https://gis-mcp.com/api/shapely/snap_geometry/
-  - symmetric_difference: https://gis-mcp.com/api/shapely/symmetric_difference/
-  - translate_geometry: https://gis-mcp.com/api/shapely/translate_geometry/
-  - triangulate_geometry: https://gis-mcp.com/api/shapely/triangulate_geometry/
-  - unary_union_geometries: https://gis-mcp.com/api/shapely/unary_union_geometries/
-  - union: https://gis-mcp.com/api/shapely/union/
-  - voronoi: https://gis-mcp.com/api/shapely/voronoi/
-- Analysis - PyProj overview: https://gis-mcp.com/api/pyproj/
-  - transform_coordinates: https://gis-mcp.com/api/pyproj/transform_coordinates/
-  - project_geometry: https://gis-mcp.com/api/pyproj/project_geometry/
-  - get_crs_info: https://gis-mcp.com/api/pyproj/get_crs_info/
-  - get_available_crs: https://gis-mcp.com/api/pyproj/get_available_crs/
-  - get_utm_zone: https://gis-mcp.com/api/pyproj/get_utm_zone/
-  - get_utm_crs: https://gis-mcp.com/api/pyproj/get_utm_crs/
-  - get_geocentric_crs: https://gis-mcp.com/api/pyproj/get_geocentric_crs/
-  - get_geod_info: https://gis-mcp.com/api/pyproj/get_geod_info/
-  - calculate_geodetic_distance: https://gis-mcp.com/api/pyproj/calculate_geodetic_distance/
-  - calculate_geodetic_point: https://gis-mcp.com/api/pyproj/calculate_geodetic_point/
-  - calculate_geodetic_area: https://gis-mcp.com/api/pyproj/calculate_geodetic_area/
-- Analysis - GeoPandas overview: https://gis-mcp.com/api/geopandas/
-  - append_gpd: https://gis-mcp.com/api/geopandas/append_gpd/
-  - clip_vector: https://gis-mcp.com/api/geopandas/clip_vector/
-  - dissolve_gpd: https://gis-mcp.com/api/geopandas/dissolve_gpd/
-  - explode_gpd: https://gis-mcp.com/api/geopandas/explode_gpd/
-  - merge_gpd: https://gis-mcp.com/api/geopandas/merge_gpd/
-  - overlay_gpd: https://gis-mcp.com/api/geopandas/overlay_gpd/
-  - point_in_polygon: https://gis-mcp.com/api/geopandas/point_in_polygon/
-  - read_file_gpd: https://gis-mcp.com/api/geopandas/read_file_gpd/
-  - sjoin_gpd: https://gis-mcp.com/api/geopandas/sjoin_gpd/
-  - sjoin_nearest_gpd: https://gis-mcp.com/api/geopandas/sjoin_nearest_gpd/
-  - to_file_gpd: https://gis-mcp.com/api/geopandas/to_file_gpd/
-  - write_file_gpd: https://gis-mcp.com/api/geopandas/write_file_gpd/
-- Analysis - Rasterio overview: https://gis-mcp.com/api/rasterio/
-  - clip_raster_with_shapefile: https://gis-mcp.com/api/rasterio/clip_raster_with_shapefile/
-  - compute_ndvi: https://gis-mcp.com/api/rasterio/compute_ndvi/
-  - concat_bands: https://gis-mcp.com/api/rasterio/concat_bands/
-  - extract_band: https://gis-mcp.com/api/rasterio/extract_band/
-  - focal_statistics: https://gis-mcp.com/api/rasterio/focal_statistics/
-  - get_raster_crs: https://gis-mcp.com/api/rasterio/get_raster_crs/
-  - hillshade: https://gis-mcp.com/api/rasterio/hillshade/
-  - metadata_raster: https://gis-mcp.com/api/rasterio/metadata_raster/
-  - raster_algebra: https://gis-mcp.com/api/rasterio/raster_algebra/
-  - raster_band_statistics: https://gis-mcp.com/api/rasterio/raster_band_statistics/
-  - raster_histogram: https://gis-mcp.com/api/rasterio/raster_histogram/
-  - reclassify_raster: https://gis-mcp.com/api/rasterio/reclassify_raster/
-  - reproject_raster: https://gis-mcp.com/api/rasterio/reproject_raster/
-  - resample_raster: https://gis-mcp.com/api/rasterio/resample_raster/
-  - tile_raster: https://gis-mcp.com/api/rasterio/tile_raster/
-  - weighted_band_sum: https://gis-mcp.com/api/rasterio/weighted_band_sum/
-  - write_raster: https://gis-mcp.com/api/rasterio/write_raster/
-  - zonal_statistics: https://gis-mcp.com/api/rasterio/zonal_statistics/
-- Analysis - PySAL overview: https://gis-mcp.com/api/pysal/
-  - morans_i: https://gis-mcp.com/api/pysal/morans_i/
-  - gearys_c: https://gis-mcp.com/api/pysal/gearys_c/
-  - getis_ord_g: https://gis-mcp.com/api/pysal/getis_ord_g/
-  - moran_local: https://gis-mcp.com/api/pysal/moran_local/
-  - gamma_statistic: https://gis-mcp.com/api/pysal/gamma_statistic/
-  - getis_ord_g_local: https://gis-mcp.com/api/pysal/getis_ord_g_local/
-  - join_counts: https://gis-mcp.com/api/pysal/join_counts/
-  - join_counts_local: https://gis-mcp.com/api/pysal/join_counts_local/
-  - adbscan: https://gis-mcp.com/api/pysal/adbscan/
-  - build_and_transform_weights: https://gis-mcp.com/api/pysal/build_and_transform_weights/
-  - build_transform_and_save_weights: https://gis-mcp.com/api/pysal/build_transform_and_save_weights/
-  - distance_band_weights: https://gis-mcp.com/api/pysal/distance_band_weights/
-  - knn_weights: https://gis-mcp.com/api/pysal/knn_weights/
-  - ols_with_spatial_diagnostics_safe: https://gis-mcp.com/api/pysal/ols_with_spatial_diagnostics_safe/
-  - weights_from_shapefile: https://gis-mcp.com/api/pysal/weights_from_shapefile/
-  - spatial_markov: https://gis-mcp.com/api/pysal/spatial_markov/
-  - dynamic_lisa: https://gis-mcp.com/api/pysal/dynamic_lisa/
-  - gm_lag: https://gis-mcp.com/api/pysal/gm_lag/
-- Visualization overview: https://gis-mcp.com/api/visualize/
-  - static map: https://gis-mcp.com/api/visualize/create_map/
-  - web map: https://gis-mcp.com/api/visualize/create_web_map/
-- Examples overview: https://gis-mcp.com/examples/
-- Example - basic spatial analysis (Claude): https://gis-mcp.com/examples/basic_spatial_analysis_claude/
-- Example - CRS, area & distance: https://gis-mcp.com/examples/crs_area_distance_analysis/
-- Contributing: https://gis-mcp.com/contributing/
-- Related MCP servers: https://gis-mcp.com/related-mcp-servers/
-- Support/Discord: https://discord.gg/dzkXZsZK
+## Capabilities
+
+- Shapely: buffer, overlay, centroid, bounds, simplify, make_valid, distance/area/length.
+- PyProj: CRS transforms, EPSG/UTM helpers, geodetic distance/area/point.
+- GeoPandas: vector IO, spatial join/overlay, dissolve, clip, explode, nearest.
+- Rasterio: GeoTIFF IO, clip/reproject/resample, NDVI, hillshade, focal/zonal stats, tile.
+- PySAL: Moran/Geary/Getis-Ord, weights, Markov, OLS diagnostics, clustering.
+- Visualization: static maps and interactive web maps (Folium/PyDeck with `[visualize]`).
+
+## Use with AI editors and agents
+
+- Pin this file or fetch it from the docs site when the model has a large window.
+- Configure `.cursor/mcp.json` or Claude Desktop to run `gis-mcp` (stdio) or HTTP.
+- Agent tutorials: https://gis-mcp.com/gis-ai-agent/
+
+## Docs
+
+- [HOME](https://gis-mcp.com/): Open-source MCP server that connects GIS libraries (Shapely, PyProj, GeoPandas, Rasterio, PySAL) to LLMs.
+- [Getting Started](https://gis-mcp.com/getting-started/): This guide helps you install and run the GIS MCP Server quickly using pip (with uv) and shows how to connect it to your IDE/client.
+- [Architecture](https://gis-mcp.com/architecture/): This page explains where GIS MCP Server sits in agentic AI apps and how the server is structured inside. Diagrams live here (not in the GitHub README) so the docs stay the place...
+- [Vibe Coding](https://gis-mcp.com/vibe-coding/): GIS MCP is an open-source Model Context Protocol server for GIS/geospatial analysis and AI agents. If you develop agents via vibe coding, give the model these machine-readable m...
+
+## Installations
+
+- [Installations overview](https://gis-mcp.com/install/): Pick the path that matches your setup:
+- [Docker](https://gis-mcp.com/install/docker/): GIS MCP Server can be run using Docker, which provides an isolated environment with all dependencies pre-installed.
+- [pip](https://gis-mcp.com/install/pip/): This video teaches you the installation of GIS MCP Server on your windows and Claude Desktop:
+- [Developers](https://gis-mcp.com/install/developers/): 1. Create env and install in editable mode:
+
+## Configuration
+
+- [Storage Configuration](https://gis-mcp.com/storage-configuration/): The GIS MCP Server stores files used for reading, writing, and downloading geospatial data. Two storage backends are supported:
+- [HTTP Transport](https://gis-mcp.com/http-transport/): The GIS MCP server now supports both STDIO and HTTP transport modes, making it flexible for different deployment scenarios.
+- [Server Endpoints](https://gis-mcp.com/endpoints/): When running the GIS MCP server in HTTP or SSE transport mode, the following endpoints are available:
+
+## GIS AI Agent
+
+- [GIS AI Agent overview](https://gis-mcp.com/gis-ai-agent/): Build AI agents that perform real geospatial work by connecting an agent framework to GIS MCP Server.
+- [Agent architecture](https://gis-mcp.com/gis-ai-agent/architecture/): This page describes how GIS-enabled agents use GIS MCP Server. For the server’s internal components (tool modules, storage adapters, transports), also see the project Architectu...
+- [Choosing a framework](https://gis-mcp.com/gis-ai-agent/choosing-framework/): GIS MCP Server is framework-agnostic: any runtime that can act as an MCP client can call its tools. This page helps you pick a tutorial path and avoid frameworks that are a poor...
+- [Best practices](https://gis-mcp.com/gis-ai-agent/best-practices/): Guidance for building reliable agents on top of GIS MCP Server. Practices below assume the current product model: GIS MCP exposes MCP tools; your agent framework owns planning,...
+- [LangChain overview](https://gis-mcp.com/gis-ai-agent/langchain/): Build GIS-enabled agents in Python with LangChain and GIS MCP Server.
+- [Park buffer proximity agent](https://gis-mcp.com/gis-ai-agent/langchain/basic-geospatial-agent/): Build a small LangChain agent that uses GIS MCP Server tools to answer a real planning question: *does a proposed building fall within 100 meters of a park?*
+- [LangGraph overview](https://gis-mcp.com/gis-ai-agent/langgraph/): Stateful and multi-agent GIS workflows on top of GIS MCP Server.
+- [Stateful geospatial agent](https://gis-mcp.com/gis-ai-agent/langgraph/stateful-geospatial-agent/): Build a stateful LangGraph pipeline that answers: *is a school within a 400 m walking buffer of a transit stop?*
+- [Multi-agent geospatial workflow](https://gis-mcp.com/gis-ai-agent/langgraph/multi-agent-geospatial-workflow/): A practical three-agent LangGraph pipeline for a river setback compliance check. Agents have separated jobs; only one of them calls GIS MCP.
+- [File-based site suitability](https://gis-mcp.com/gis-ai-agent/langgraph/file-based-site-suitability/): A layer-based LangGraph pattern on GIS MCP: clip → overlay → CRS-safe buffer → spatial join → map.
+- [CrewAI overview](https://gis-mcp.com/gis-ai-agent/crewai/): Tutorial not published yet
+- [Multi-agent geospatial crew](https://gis-mcp.com/gis-ai-agent/crewai/multi-agent-geospatial-crew/): Tutorial not published yet
+- [LlamaIndex overview](https://gis-mcp.com/gis-ai-agent/llamaindex/): Tutorial not published yet
+- [RAG + GIS MCP agent](https://gis-mcp.com/gis-ai-agent/llamaindex/rag-geospatial-agent/): Tutorial not published yet
+- [OpenAI (Node.js) overview](https://gis-mcp.com/gis-ai-agent/openai-nodejs/): Build GIS-enabled agents in Node.js with the OpenAI Agents SDK and GIS MCP Server.
+- [Basic geospatial agent](https://gis-mcp.com/gis-ai-agent/openai-nodejs/basic-geospatial-agent/): Welcome! This tutorial will guide you on setting up the gis-mcp server and building a Node.js agent that can perform geospatial operations.
+- [Google ADK overview](https://gis-mcp.com/gis-ai-agent/google-adk/): Tutorial not published yet
+- [ADK + GIS MCP](https://gis-mcp.com/gis-ai-agent/google-adk/adk-geospatial-agent/): Tutorial not published yet
+
+## API Reference
+
+- [Data Gathering overview](https://gis-mcp.com/data-gathering/): This section explains how to fetch external datasets with GIS-MCP. Currently covered:
+- [Administrative Boundaries](https://gis-mcp.com/data-gathering/administrative_boundaries/): The Administrative Boundaries tool in GIS-MCP allows you to download official boundaries (countries, provinces, counties, etc.) from the GADM dataset.
+- [Climate](https://gis-mcp.com/data-gathering/climate/): The Climate Data tool in GIS-MCP allows you to download climate variables (e.g., temperature, precipitation, wind, humidity) from the Copernicus Climate Data Store (CDS).
+- [Ecology](https://gis-mcp.com/data-gathering/ecology/): Currently, the Ecology Data tool in GIS-MCP allows you to download species occurrence records and taxonomic information from the Global Biodiversity Information Facility (GBIF).
+- [Movement](https://gis-mcp.com/data-gathering/movement/): Currently, the Movement Data tool in GIS-MCP allows you to download and analyze street networks and perform routing using OSMnx.
+- [Satellite Imagery](https://gis-mcp.com/data-gathering/satellite_imagery/): The Satellite Imagery tool in GIS-MCP enables downloading analysis-ready satellite scenes (e.g., Sentinel-2, Landsat) directly from the Microsoft Planetary Computer. It automati...
+- [Land Cover](https://gis-mcp.com/data-gathering/land_cover/): The Land Cover tool in GIS-MCP allows you to access global land cover maps and vegetation indices through the Microsoft Planetary Computer. It currently supports downloading ESA...
+- [Shapely overview](https://gis-mcp.com/api/shapely/): High-level geometric operations exposed via MCP. All tools accept and return geometries as WKT strings.
+- [buffer](https://gis-mcp.com/api/shapely/buffer/): Create a buffer around a geometry.
+- [centroid](https://gis-mcp.com/api/shapely/centroid/): Return the centroid point of a geometry.
+- [convex_hull](https://gis-mcp.com/api/shapely/convex_hull/): Compute the convex hull of a geometry.
+- [difference](https://gis-mcp.com/api/shapely/difference/): Subtract one geometry from another (geometry1 − geometry2).
+- [envelope](https://gis-mcp.com/api/shapely/envelope/): Return the axis-aligned bounding box polygon of a geometry.
+- [geojson_to_geometry](https://gis-mcp.com/api/shapely/geojson_to_geometry/): Convert GeoJSON to a Shapely geometry using shapely.shape.
+- [geometry_to_geojson](https://gis-mcp.com/api/shapely/geometry_to_geojson/): Convert a Shapely geometry (WKT) to GeoJSON using shapely.geometry.mapping.
+- [get_area](https://gis-mcp.com/api/shapely/get_area/): Return the area of a geometry.
+- [get_bounds](https://gis-mcp.com/api/shapely/get_bounds/): Return bounds [minx, miny, maxx, maxy] of a geometry.
+- [get_coordinates](https://gis-mcp.com/api/shapely/get_coordinates/): Return coordinates of a LineString or LinearRing.
+- [get_geometry_type](https://gis-mcp.com/api/shapely/get_geometry_type/): Return the geometry type string.
+- [get_length](https://gis-mcp.com/api/shapely/get_length/): Return the length of a geometry.
+- [intersection](https://gis-mcp.com/api/shapely/intersection/): Find the geometric intersection of two geometries.
+- [is_valid](https://gis-mcp.com/api/shapely/is_valid/): Check if a geometry is valid.
+- [make_valid](https://gis-mcp.com/api/shapely/make_valid/): make_valid
+- [minimum_rotated_rectangle](https://gis-mcp.com/api/shapely/minimum_rotated_rectangle/): Return the minimum rotated rectangle of a geometry.
+- [nearest_point_on_geometry](https://gis-mcp.com/api/shapely/nearest_point_on_geometry/): Find the nearest point on geometry2 to geometry1 using shapely.ops.nearest_points.
+- [normalize_geometry](https://gis-mcp.com/api/shapely/normalize_geometry/): Normalize the orientation/order of a geometry using shapely.normalize.
+- [rotate_geometry](https://gis-mcp.com/api/shapely/rotate_geometry/): Rotate a geometry by angle around origin.
+- [scale_geometry](https://gis-mcp.com/api/shapely/scale_geometry/): Scale a geometry by factors around origin.
+- [simplify](https://gis-mcp.com/api/shapely/simplify/): Simplify a geometry with a tolerance.
+- [snap_geometry](https://gis-mcp.com/api/shapely/snap_geometry/): Snap one geometry to another using shapely.ops.snap.
+- [symmetric_difference](https://gis-mcp.com/api/shapely/symmetric_difference/): Find the symmetric difference of two geometries.
+- [translate_geometry](https://gis-mcp.com/api/shapely/translate_geometry/): Translate a geometry by x/y(/z) offsets.
+- [triangulate_geometry](https://gis-mcp.com/api/shapely/triangulate_geometry/): Triangulate a polygon geometry; returns multiple triangles.
+- [unary_union_geometries](https://gis-mcp.com/api/shapely/unary_union_geometries/): Compute the unary union of multiple geometries.
+- [union](https://gis-mcp.com/api/shapely/union/): Combine two geometries into their union.
+- [voronoi](https://gis-mcp.com/api/shapely/voronoi/): Create a Voronoi diagram from input points.
+- [PyProj overview](https://gis-mcp.com/api/pyproj/): Coordinate reference system utilities and geodetic calculations.
+- [transform_coordinates](https://gis-mcp.com/api/pyproj/transform_coordinates/): Transform a coordinate pair between CRS.
+- [project_geometry](https://gis-mcp.com/api/pyproj/project_geometry/): Project a geometry from one CRS to another.
+- [get_crs_info](https://gis-mcp.com/api/pyproj/get_crs_info/): Return detailed information about a CRS string.
+- [get_available_crs](https://gis-mcp.com/api/pyproj/get_available_crs/): Return a list of available CRS entries.
+- [get_utm_zone](https://gis-mcp.com/api/pyproj/get_utm_zone/): Return the UTM zone code for given lon/lat.
+- [get_utm_crs](https://gis-mcp.com/api/pyproj/get_utm_crs/): Return a UTM CRS (WKT) for given lon/lat.
+- [get_geocentric_crs](https://gis-mcp.com/api/pyproj/get_geocentric_crs/): Return a geocentric CRS (WKT) for given lon/lat.
+- [get_geod_info](https://gis-mcp.com/api/pyproj/get_geod_info/): Return parameters of a Geod model.
+- [calculate_geodetic_distance](https://gis-mcp.com/api/pyproj/calculate_geodetic_distance/): Compute geodesic distance and azimuths between two lon/lat points.
+- [calculate_geodetic_point](https://gis-mcp.com/api/pyproj/calculate_geodetic_point/): From a start lon/lat, azimuth, and distance, compute the destination point.
+- [calculate_geodetic_area](https://gis-mcp.com/api/pyproj/calculate_geodetic_area/): Compute the geodesic area of a polygon.
+- [GeoPandas overview](https://gis-mcp.com/api/geopandas/): I/O and attribute-join helpers for vector data.
+- [append_gpd](https://gis-mcp.com/api/geopandas/append_gpd/): Concatenate two shapefiles vertically and save the result.
+- [clip_vector](https://gis-mcp.com/api/geopandas/clip_vector/): Clip vector geometries using another geometry file with geopandas.clip.
+- [dissolve_gpd](https://gis-mcp.com/api/geopandas/dissolve_gpd/): Dissolve geometries in a GeoDataFrame by attribute using geopandas.dissolve.
+- [explode_gpd](https://gis-mcp.com/api/geopandas/explode_gpd/): Split multi-part geometries into single parts using geopandas.explode.
+- [merge_gpd](https://gis-mcp.com/api/geopandas/merge_gpd/): Database-style attribute merge between two shapefiles; preserves geometry from the left file.
+- [overlay_gpd](https://gis-mcp.com/api/geopandas/overlay_gpd/): Overlay two GeoDataFrames using various spatial operations (intersection, union, etc.).
+- [point_in_polygon](https://gis-mcp.com/api/geopandas/point_in_polygon/): Check if points are inside polygons using a spatial join (predicate='within').
+- [read_file_gpd](https://gis-mcp.com/api/geopandas/read_file_gpd/): Read a geospatial file into a GeoDataFrame and return metadata plus a preview.
+- [sjoin_gpd](https://gis-mcp.com/api/geopandas/sjoin_gpd/): Perform a spatial join between two GeoDataFrames using geopandas.sjoin.
+- [sjoin_nearest_gpd](https://gis-mcp.com/api/geopandas/sjoin_nearest_gpd/): Perform a nearest neighbor spatial join using geopandas.sjoin_nearest.
+- [to_file_gpd](https://gis-mcp.com/api/geopandas/to_file_gpd/): Write a GeoDataFrame to a file. This server exposes write via other tools (e.g., append_gpd, merge_gpd).
+- [write_file_gpd](https://gis-mcp.com/api/geopandas/write_file_gpd/): Export a GeoDataFrame to a file (Shapefile, GeoJSON, GPKG, etc.).
+- [Rasterio overview](https://gis-mcp.com/api/rasterio/): Raster I/O, processing, and analysis.
+- [clip_raster_with_shapefile](https://gis-mcp.com/api/rasterio/clip_raster_with_shapefile/): Clip a raster using polygons from a shapefile and write the result.
+- [compute_ndvi](https://gis-mcp.com/api/rasterio/compute_ndvi/): Compute NDVI from NIR and Red bands and save to GeoTIFF.
+- [concat_bands](https://gis-mcp.com/api/rasterio/concat_bands/): Concatenate multiple single-band rasters into a multi-band raster; auto-aligns if needed.
+- [extract_band](https://gis-mcp.com/api/rasterio/extract_band/): Extract a single band from a multi-band raster and write it.
+- [focal_statistics](https://gis-mcp.com/api/rasterio/focal_statistics/): Compute focal (moving window) statistics on a raster.
+- [get_raster_crs](https://gis-mcp.com/api/rasterio/get_raster_crs/): Retrieve the CRS of a raster in PROJ dict and WKT string.
+- [hillshade](https://gis-mcp.com/api/rasterio/hillshade/): Generate hillshade from a DEM raster.
+- [metadata_raster](https://gis-mcp.com/api/rasterio/metadata_raster/): Open a raster (local path or HTTPS URL) and return core metadata.
+- [raster_algebra](https://gis-mcp.com/api/rasterio/raster_algebra/): Perform addition or subtraction on two rasters' bands; handles alignment.
+- [raster_band_statistics](https://gis-mcp.com/api/rasterio/raster_band_statistics/): Calculate min, max, mean, std for each band.
+- [raster_histogram](https://gis-mcp.com/api/rasterio/raster_histogram/): Compute histogram of pixel values for each band.
+- [reclassify_raster](https://gis-mcp.com/api/rasterio/reclassify_raster/): Reclassify raster values using a mapping dictionary.
+- [reproject_raster](https://gis-mcp.com/api/rasterio/reproject_raster/): Reproject a raster to a target CRS and save the result.
+- [resample_raster](https://gis-mcp.com/api/rasterio/resample_raster/): Resample a raster by a scale factor and write the result.
+- [tile_raster](https://gis-mcp.com/api/rasterio/tile_raster/): Split a raster into square tiles and write them to a directory.
+- [weighted_band_sum](https://gis-mcp.com/api/rasterio/weighted_band_sum/): Compute a weighted sum across all bands in a raster.
+- [write_raster](https://gis-mcp.com/api/rasterio/write_raster/): Write a numpy array to a raster file using metadata from a reference raster.
+- [zonal_statistics](https://gis-mcp.com/api/rasterio/zonal_statistics/): Calculate statistics of raster values within polygons (zonal statistics).
+- [PySAL overview](https://gis-mcp.com/api/pysal/): Spatial autocorrelation and clustering tools powered by PySAL/ESDA.
+- [morans_i](https://gis-mcp.com/api/pysal/morans_i/): Compute Moran's I global autocorrelation statistic.
+- [gearys_c](https://gis-mcp.com/api/pysal/gearys_c/): Compute Geary's C global autocorrelation statistic.
+- [getis_ord_g](https://gis-mcp.com/api/pysal/getis_ord_g/): Compute Global Getis-Ord G statistic for hot spot analysis.
+- [moran_local](https://gis-mcp.com/api/pysal/moran_local/): Compute Local Moran's I statistics.
+- [gamma_statistic](https://gis-mcp.com/api/pysal/gamma_statistic/): Compute Gamma statistic for spatial autocorrelation.
+- [getis_ord_g_local](https://gis-mcp.com/api/pysal/getis_ord_g_local/): Compute Local Getis-Ord G\* statistic.
+- [join_counts](https://gis-mcp.com/api/pysal/join_counts/): Compute Global Binary Join Counts on a binary variable.
+- [join_counts_local](https://gis-mcp.com/api/pysal/join_counts_local/): Compute Local Join Counts statistics.
+- [adbscan](https://gis-mcp.com/api/pysal/adbscan/): Adaptive DBSCAN clustering on point coordinates.
+- [build_and_transform_weights](https://gis-mcp.com/api/pysal/build_and_transform_weights/): Build and transform spatial weights in one step.
+- [build_transform_and_save_weights](https://gis-mcp.com/api/pysal/build_transform_and_save_weights/): Pipeline: Build spatial weights, optionally transform, and save to file.
+- [distance_band_weights](https://gis-mcp.com/api/pysal/distance_band_weights/): Create a distance-based spatial weights (W) matrix from point data.
+- [knn_weights](https://gis-mcp.com/api/pysal/knn_weights/): Create a k-nearest neighbors spatial weights (W) matrix from point data.
+- [ols_with_spatial_diagnostics_safe](https://gis-mcp.com/api/pysal/ols_with_spatial_diagnostics_safe/): Run OLS regression with spatial diagnostics, ensuring data safety checks.
+- [weights_from_shapefile](https://gis-mcp.com/api/pysal/weights_from_shapefile/): Create a spatial weights (W) matrix from a shapefile using contiguity.
+- [spatial_markov](https://gis-mcp.com/api/pysal/spatial_markov/): Run Spatial Markov analysis on panel data (n regions x t periods) from a shapefile. This function uses giddy.Spatial_Markov to analyze spatial-temporal dynamics and transition p...
+- [dynamic_lisa](https://gis-mcp.com/api/pysal/dynamic_lisa/): Run dynamic LISA (directional LISA) analysis using giddy.directional.Rose. This function analyzes directional changes in spatial patterns between two time periods.
+- [gm_lag](https://gis-mcp.com/api/pysal/gm_lag/): Run GM_Lag (spatial 2SLS / GMM-IV spatial lag model) on a cross-section. This function estimates spatial lag models using instrumental variables and generalized method of moments.
+- [Visualization overview](https://gis-mcp.com/api/visualize/): The visualization module provides tools for creating both static and interactive maps from geospatial data. This module requires the [visualize] extra to be installed.
+- [create_map](https://gis-mcp.com/api/visualize/create_map/): Create a styled static map from multiple geospatial data sources.
+- [create_web_map](https://gis-mcp.com/api/visualize/create_web_map/): Create an interactive web map (HTML) using Folium with multiple layers and dynamic controls.
+
+## Examples
+
+- [Examples overview](https://gis-mcp.com/examples/): This section contains practical, step-by-step examples for using GIS MCP Server in real-world geospatial workflows. Each example includes prompts, actions, and video tutorials t...
+- [Basic Spatial Analysis (claude)](https://gis-mcp.com/examples/basic_spatial_analysis_claude/): In this example, we will perform spatial operations on two shapefiles:
+- [CRS, Area & Distance Analysis](https://gis-mcp.com/examples/crs_area_distance_analysis/): In this example, we will perform spatial QA and measurements on a single shapefile:
+- [Movement Analysis](https://gis-mcp.com/examples/movement_example/): This example demonstrates how to use GIS-MCP's movement tools (powered by OSMnx) to download street networks and calculate shortest paths.
+- [Climate Data](https://gis-mcp.com/examples/climate_data_example/): In this example, you will learn how to download and analyze climate data using GIS MCP Server and Claude Desktop, as demonstrated in the YouTube video.
+
+## Project
+
+- [Contributing](https://gis-mcp.com/contributing/): Thank you for your interest in contributing to GIS MCP Server! We welcome issues, ideas, docs, and code.
+- [Related MCP Servers](https://gis-mcp.com/related-mcp-servers/): This page lists other MCP servers that complement GIS MCP Server and can be used together to build comprehensive geospatial AI workflows.
+
+## Support
+
+- [Link to Discord](https://discord.gg/dzkXZsZK)
+- [Link to GitHub issues](https://github.com/mahdin75/gis-mcp/issues)
+
+## Additional pages
+
+- [Donate](https://gis-mcp.com/donate/): Support GIS MCP Server development
+
+## LLM files
+
+- [llms.txt](https://gis-mcp.com/llms.txt): Curated summary for small context windows
+- [llms-full.txt](https://gis-mcp.com/llms-full.txt): This file; complete documentation map
