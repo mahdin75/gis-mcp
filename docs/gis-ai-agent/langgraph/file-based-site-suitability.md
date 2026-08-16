@@ -12,8 +12,8 @@ Use **this** pattern when the question needs **GeoJSON/shapefile layers**, inter
 ## What it demonstrates
 
 ```
-User request
-  → interpret / plan (LangGraph state)
+User types a prompt (You:)
+  → interpret stores the prompt + buffer_meters
   → read_file_gpd
   → clip_vector (lots ∩ downtown)
   → overlay_gpd how=difference (erase flood)
@@ -21,8 +21,10 @@ User request
   → project_geometry back to EPSG:4326 → save_results
   → sjoin_gpd (lots ⋈ park-access zone)
   → write_file_gpd · create_map · create_web_map
-  → rank + validate + natural-language briefing
+  → respond answers that same prompt + HTML map path
 ```
+
+The visual output is `create_web_map` (OpenStreetMap + constraint layers). The text output is an answer to the user’s question, not a generic log.
 
 GIS MCP has **no GeoPandas buffer** and **no layer `to_crs` tool**. Meter buffers must use Shapely `buffer` on WKT **after** `project_geometry` into a UTM CRS, then save the result back to a file. See [best practices](../best-practices.md).
 
