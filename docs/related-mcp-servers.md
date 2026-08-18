@@ -33,6 +33,44 @@ pip install geoserver-mcp
 
 ---
 
+## CARTO for Agents
+
+**Website:** [carto.com](https://carto.com/)
+
+**Description:** The official remote MCP server for CARTO, a cloud-native GIS platform. Every tool call runs inside your own cloud data warehouse or lakehouse, so it covers the governed, enterprise-scale end of a workflow that GIS MCP Server handles at the library level.
+
+**Use Cases:**
+
+- Browsing governed warehouse data: connections, tables, columns, and column statistics
+- Running spatial SQL and geospatial analysis at warehouse scale
+- Rendering interactive maps inline in the conversation, or loading saved CARTO Builder maps
+- Running an organization's published CARTO Workflows as agent tools
+
+**Key Features:**
+
+- Warehouse-native execution on BigQuery, Snowflake, Databricks, Redshift, or PostgreSQL, with no data copied out
+- OAuth 2.0 user-to-machine auth, so the agent inherits the user's permissions and every action is auditable
+- Remote server over streamable HTTP, so there is nothing to install locally
+- Creating and editing maps and workflows, not only reading them
+
+**Installation:**
+
+Remote server, no install required. Add the organization's endpoint to any MCP client:
+
+```json
+{
+  "mcpServers": {
+    "carto": {
+      "url": "https://<region>.api.carto.com/mcp/<account_id>"
+    }
+  }
+}
+```
+
+**Documentation:** [CARTO for Agents](https://docs.carto.com/carto-for-agents?utm_source=gis-mcp&utm_medium=listing&utm_campaign=mcp-marketplace-listings)
+
+---
+
 ## Using Multiple MCP Servers Together
 
 You can configure multiple MCP servers in your client (Claude Desktop or Cursor IDE) to leverage different capabilities:
@@ -65,6 +103,7 @@ This allows your AI assistant to:
 
 - Perform geospatial analysis using GIS MCP Server (Shapely, PyProj, GeoPandas, Rasterio, PySAL)
 - Manage and query GeoServer instances using GeoServer MCP
+- Query governed warehouse data and render maps using CARTO for Agents
 - Combine both capabilities for comprehensive geospatial workflows
 
 ---
