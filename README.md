@@ -1,5 +1,22 @@
 # GIS MCP Server
 
+GIS-MCP is an open-source Model Context Protocol (MCP) server that connects AI assistants and Large Language Models (LLMs) with GIS and geospatial operations.
+
+It enables AI agents to perform geospatial analysis, spatial data processing, vector and raster operations, coordinate transformations, spatial statistics, mapping, and other GIS workflows through MCP-compatible clients.
+
+🌐 **Official Documentation:** https://gis-mcp.com
+
+
+📦 **PyPI:** https://pypi.org/project/gis-mcp/ 
+
+💻 **Source Code:** https://github.com/mahdin75/gis-mcp
+
+
+> **92+ GIS tools** across Shapely, GeoPandas, PyProj, Rasterio, PySAL, visualization, satellite imagery, climate, ecology, movement, and land-cover data.
+
+
+<br/>
+
 [![MCP Toplist](https://mcptoplist.com/badge/mcp.so%2Fgis-mcp-server%2Fmahdin75.svg)](https://mcptoplist.com/server/mcp.so%2Fgis-mcp-server%2Fmahdin75)
 
 <div align="center">
@@ -23,12 +40,6 @@
 
   <br/>
 </div>
-
-A Model Context Protocol (MCP) server implementation that connects Large Language Models (LLMs) to GIS operations using GIS libraries, enabling AI assistants to perform geospatial operations and transformations.
-
-How it fits next to the LLM and other tools, plus internal components: **[Architecture](https://gis-mcp.com/architecture/)**.
-
-🌐 **Website:** [gis-mcp.com](https://gis-mcp.com)
 
 > Current version is 0.15.0 (Beta):
 >
