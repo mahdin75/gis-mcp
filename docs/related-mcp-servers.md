@@ -33,6 +33,33 @@ pip install geoserver-mcp
 
 ---
 
+## DC Hub
+
+**Repository:** [azmartone67/dchub-mcp-server](https://github.com/azmartone67/dchub-mcp-server)
+
+**Description:** DC Hub is the live data layer for data-center site selection. Its Data Center Power Index (DCPI) is a daily score of where data centers can get grid power, across 300+ markets. It complements GIS MCP Server: DC Hub supplies the power, grid, gas and fiber context for a candidate site, and GIS MCP Server does the geometry work around it (buffers, distances, overlays).
+
+**Use Cases:**
+
+- Screening candidate parcels or metros for grid power before running spatial analysis
+- Pulling nearby substations, transmission, gas and fiber assets for a site, then measuring distances with GIS MCP Server
+- Comparing markets on power availability, energy prices and interconnection queues
+
+**Key Features:**
+
+- Daily DCPI market scores across 300+ markets
+- Live grid feeds from the seven US ISOs (PJM, ERCOT, CAISO, MISO, SPP, NYISO, ISO-NE)
+- Mapped power, grid, gas and fiber assets
+- Answers carry an as-of date and a citation line
+
+**Installation:**
+
+No install. It is a hosted remote server over streamable HTTP at `https://dchub.cloud/mcp`. In Claude Desktop, add it under Settings, Connectors, Add custom connector. In Cursor, add it as a `url` entry in `mcp.json`. Previews need no key; a free key adds a daily allowance of full answers.
+
+**Documentation:** [GitHub Repository](https://github.com/azmartone67/dchub-mcp-server)
+
+---
+
 ## Using Multiple MCP Servers Together
 
 You can configure multiple MCP servers in your client (Claude Desktop or Cursor IDE) to leverage different capabilities:
