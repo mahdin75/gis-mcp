@@ -215,6 +215,38 @@ class TestRasterProcessing:
             result_data = get_result_data(result)
             assert result_data["status"] == "success"
             assert os.path.exists(output_path)
+            with rasterio.open(output_path) as out:
+                assert out.crs.to_epsg() == 3857
+
+    @pytest.mark.asyncio
+    async def test_reproject_raster_preserves_epsg_authority(self, temp_dir):
+        """Proj4 output CRS drops authority codes such as EPSG:3414 (issue #48)."""
+        src = os.path.join(temp_dir, "src_4326.tif")
+        with rasterio.open(
+            src,
+            "w",
+            driver="GTiff",
+            width=10,
+            height=10,
+            count=1,
+            dtype="float32",
+            crs="EPSG:4326",
+            transform=from_origin(103.6, 1.47, 0.004, 0.002),
+        ) as src_ds:
+            src_ds.write(np.ones((1, 10, 10), dtype="float32"))
+
+        async with Client(gis_mcp) as client:
+            for code in (3414, 32648, 3857):
+                dst = os.path.join(temp_dir, f"dst_{code}.tif")
+                result = await client.call_tool("reproject_raster", {
+                    "source": src,
+                    "target_crs": f"EPSG:{code}",
+                    "destination": dst,
+                })
+                result_data = get_result_data(result)
+                assert result_data["status"] == "success"
+                with rasterio.open(dst) as out:
+                    assert out.crs.to_epsg() == code
     
     @pytest.mark.asyncio
     async def test_tile_raster(self, sample_raster_file, temp_dir):

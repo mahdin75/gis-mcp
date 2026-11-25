@@ -688,10 +688,12 @@ def reproject_raster(
                 f"Please ensure the raster has a valid EPSG CRS defined."
             )
 
-        # Convert target_crs using pyproj to create a CRS object that rasterio can use
-        # We'll use pyproj's proj4 dict format to avoid PROJ database conflicts
+        # Convert target_crs with pyproj so rasterio does not look the code up in
+        # its own PROJ database (avoids Windows/PostgreSQL PROJ conflicts).
+        # The profile CRS is built from WKT: a proj4 string has no authority, so
+        # CRSs such as EPSG:3414 are written as "unknown" and to_epsg() is None.
         target_crs_str = target_crs  # String format for calculate_default_transform and reproject
-        target_crs_profile = None  # CRS object for profile (using pyproj's proj4 dict)
+        target_crs_profile = None
         
         try:
             import pyproj
@@ -702,7 +704,6 @@ def reproject_raster(
                 if upper_target.startswith('EPSG:'):
                     try:
                         epsg_code = int(upper_target.split(':')[1])
-                        # Use pyproj to create CRS, then get proj4 dict
                         pyproj_crs = pyproj.CRS.from_epsg(epsg_code)
                         target_crs_str = target_crs  # Keep string format
                     except (ValueError, IndexError, Exception):
@@ -721,26 +722,23 @@ def reproject_raster(
                 if auth and len(auth) == 2:
                     target_crs_str = f"{auth[0]}:{auth[1]}"
             
-            # Convert pyproj CRS to proj4 string format
-            # Using proj4 string format might avoid WKT parsing which triggers PROJ database conflicts
+            # WKT keeps the authority and datum. Proj4 is only a fallback.
             try:
-                # Get proj4 string from pyproj
-                proj4_string = pyproj_crs.to_proj4()
-                # Try creating rasterio CRS from proj4 string
-                target_crs_profile = rasterio.crs.CRS.from_string(proj4_string)
+                target_crs_profile = rasterio.crs.CRS.from_wkt(pyproj_crs.to_wkt())
             except Exception:
-                # If proj4 string fails, try dict format
                 try:
-                    proj4_dict = pyproj_crs.to_dict()
-                    target_crs_profile = rasterio.crs.CRS.from_dict(proj4_dict)
+                    proj4_string = pyproj_crs.to_proj4()
+                    target_crs_profile = rasterio.crs.CRS.from_string(proj4_string)
                 except Exception:
-                    # If both fail, try passing pyproj CRS object directly
                     try:
-                        target_crs_profile = rasterio.crs.CRS.from_user_input(pyproj_crs)
+                        proj4_dict = pyproj_crs.to_dict()
+                        target_crs_profile = rasterio.crs.CRS.from_dict(proj4_dict)
                     except Exception:
-                        # Last resort: use proj4 dict directly in profile
-                        # This might still trigger parsing but it's our last option
-                        target_crs_profile = pyproj_crs.to_dict()
+                        try:
+                            target_crs_profile = rasterio.crs.CRS.from_user_input(pyproj_crs)
+                        except Exception:
+                            # Last resort: use proj4 dict directly in profile
+                            target_crs_profile = pyproj_crs.to_dict()
                 
         except Exception as e:
             logger.debug(f"Failed to convert target_crs using pyproj: {e}")
@@ -813,7 +811,7 @@ def reproject_raster(
         # Store transform and source path for reproject call
         src_transform = src.transform
         profile.update({
-            "crs": target_crs_profile,  # Use integer EPSG code to avoid PROJ database parsing conflicts
+            "crs": target_crs_profile,  # WKT CRS so the EPSG authority is written to the file
             "transform": transform,
             "width": width,
             "height": height
