@@ -34,6 +34,23 @@ def get_rasterio_operations() -> Dict[str, List[str]]:
         ]
     }
 
+def _nodata_for_mask(src) -> float:
+    """Nodata used to fill pixels outside a clip/mask geometry.
+
+    rasterio.mask.mask fills with 0 when the source has no nodata. Callers must
+    write that value on the output so later statistics do not treat fill as data.
+    Prefer the source nodata; otherwise NaN for floats and the dtype minimum for ints.
+    """
+    import numpy as np
+
+    if src.nodata is not None:
+        return src.nodata
+    dtype = np.dtype(src.dtypes[0])
+    if np.issubdtype(dtype, np.floating):
+        return np.nan
+    return int(np.iinfo(dtype).min)
+
+
 @gis_mcp.tool()
 def zonal_statistics(raster_path: str, vector_path: str, stats: list = None) -> Dict[str, Any]:
     """
@@ -41,7 +58,7 @@ def zonal_statistics(raster_path: str, vector_path: str, stats: list = None) -> 
     Args:
         raster_path: Path to the raster file.
         vector_path: Path to the vector file (polygons).
-        stats: List of statistics to compute (e.g., ["mean", "min", "max", "std"]).
+        stats: List of statistics to compute (e.g., ["mean", "min", "max", "std", "count"]).
     Returns:
         Dictionary with status, message, and statistics per polygon.
     """
@@ -57,13 +74,14 @@ def zonal_statistics(raster_path: str, vector_path: str, stats: list = None) -> 
             results = []
             for idx, row in gdf.iterrows():
                 geom = [row["geometry"]]
-                out_image, out_transform = rasterio.mask.mask(src, geom, crop=True, filled=True)
-                data = out_image[0]
-                data = data[data != src.nodata] if src.nodata is not None else data
-                stat_result = {"index": idx}
+                # filled=False returns a masked array: outside-polygon (and source
+                # nodata) pixels are masked even when the raster has no nodata.
+                out_image, _ = rasterio.mask.mask(src, geom, crop=True, filled=False)
+                data = np.ma.asarray(out_image[0]).compressed()
+                stat_result = {"index": int(idx)}
                 if data.size == 0:
                     for s in stats:
-                        stat_result[s] = None
+                        stat_result[s] = 0 if s == "count" else None
                 else:
                     if "mean" in stats:
                         stat_result["mean"] = float(np.mean(data))
@@ -73,6 +91,8 @@ def zonal_statistics(raster_path: str, vector_path: str, stats: list = None) -> 
                         stat_result["max"] = float(np.max(data))
                     if "std" in stats:
                         stat_result["std"] = float(np.std(data))
+                    if "count" in stats:
+                        stat_result["count"] = int(data.size)
                 results.append(stat_result)
         return {
             "status": "success",
@@ -413,8 +433,11 @@ def clip_raster_with_shapefile(
             if shapefile_crs != raster_crs:
                 shapes = [transform_geom(str(shapefile_crs), str(raster_crs), shape) for shape in shapes]
 
-        # Apply mask: crop to shapes and set outside pixels to zero
-        out_image, out_transform = rasterio.mask.mask(src, shapes, crop=True)
+        # Fill pixels outside the clip geometry with nodata (not a real 0).
+        nodata = _nodata_for_mask(src)
+        out_image, out_transform = rasterio.mask.mask(
+            src, shapes, crop=True, filled=True, nodata=nodata
+        )
         out_meta = src.meta.copy()
         src.close()
 
@@ -423,7 +446,8 @@ def clip_raster_with_shapefile(
             "driver": "GTiff",
             "height": out_image.shape[1],
             "width": out_image.shape[2],
-            "transform": out_transform
+            "transform": out_transform,
+            "nodata": nodata,
         })
 
         # Resolve destination path relative to storage
