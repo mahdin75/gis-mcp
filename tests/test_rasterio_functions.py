@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 import numpy as np
 import rasterio
-from rasterio.transform import from_bounds
+from rasterio.transform import from_bounds, from_origin
 import geopandas as gpd
 from shapely.geometry import Polygon
 
@@ -65,6 +65,38 @@ def sample_vector_file(temp_dir):
     )
     test_file = os.path.join(temp_dir, 'test_polygons.shp')
     gdf.to_file(test_file)
+    return test_file
+
+
+@pytest.fixture
+def constant_raster_no_nodata(temp_dir):
+    """10x10 raster of 100s with no nodata (issue #47 reproduction)."""
+    test_file = os.path.join(temp_dir, "constant_100.tif")
+    with rasterio.open(
+        test_file,
+        "w",
+        driver="GTiff",
+        width=10,
+        height=10,
+        count=1,
+        dtype="float32",
+        crs="EPSG:4326",
+        transform=from_origin(0, 10, 1, 1),
+    ) as dst:
+        dst.write(np.full((1, 10, 10), 100, dtype=np.float32))
+    return test_file
+
+
+@pytest.fixture
+def triangle_vector_file(temp_dir):
+    """Triangle covering about half of a 0–10 / 0–10 bounding box."""
+    gdf = gpd.GeoDataFrame(
+        {"id": [1]},
+        geometry=[Polygon([(0, 0), (10, 0), (0, 10), (0, 0)])],
+        crs="EPSG:4326",
+    )
+    test_file = os.path.join(temp_dir, "triangle.geojson")
+    gdf.to_file(test_file, driver="GeoJSON")
     return test_file
 
 
@@ -310,6 +342,50 @@ class TestAdvancedAnalysis:
             assert result_data["status"] == "success"
             assert "results" in result_data
             assert len(result_data["results"]) > 0
+
+    @pytest.mark.asyncio
+    async def test_zonal_statistics_ignores_fill_when_no_nodata(
+        self, constant_raster_no_nodata, triangle_vector_file
+    ):
+        """Fill pixels outside the polygon must not be counted as 0 (issue #47)."""
+        async with Client(gis_mcp) as client:
+            result = await client.call_tool("zonal_statistics", {
+                "raster_path": constant_raster_no_nodata,
+                "vector_path": triangle_vector_file,
+                "stats": ["mean", "min", "max", "count"],
+            })
+            result_data = get_result_data(result)
+            assert result_data["status"] == "success"
+            stats = result_data["results"][0]
+            assert stats["mean"] == 100.0
+            assert stats["min"] == 100.0
+            assert stats["max"] == 100.0
+            assert stats["count"] > 0
+            # Cropped bbox is 10x10; the triangle covers about half, not the fill zeros.
+            assert stats["count"] < 100
+
+    @pytest.mark.asyncio
+    async def test_clip_raster_writes_nodata_when_source_has_none(
+        self, constant_raster_no_nodata, triangle_vector_file, temp_dir
+    ):
+        """Clipped output must set nodata so outside-polygon pixels are not 0."""
+        output_path = os.path.join(temp_dir, "clipped_no_nodata.tif")
+        async with Client(gis_mcp) as client:
+            result = await client.call_tool("clip_raster_with_shapefile", {
+                "raster_path_or_url": constant_raster_no_nodata,
+                "shapefile_path": triangle_vector_file,
+                "destination": output_path,
+            })
+            result_data = get_result_data(result)
+            assert result_data["status"] == "success"
+
+        with rasterio.open(output_path) as src:
+            assert src.nodata is not None
+            band = src.read(1, masked=True)
+            assert np.ma.is_masked(band)
+            assert float(band.mean()) == 100.0
+            assert float(band.min()) == 100.0
+            assert float(band.max()) == 100.0
     
     @pytest.mark.asyncio
     async def test_reclassify_raster(self, sample_raster_file, temp_dir):
