@@ -173,7 +173,8 @@ def download_worldcover(
     geometry_geojson: Optional[str] = None,
     out_crs: Optional[str] = "EPSG:4326",
     filename: Optional[str] = None,
-    path: Optional[str] = None
+    path: Optional[str] = None,
+    include_properties: bool = True,
 ) -> Dict[str, Any]:
     """
     Download ESA WorldCover (10 m) for the given AOI and year from Microsoft Planetary Computer.
@@ -235,15 +236,19 @@ def download_worldcover(
         _write_gtiff(out_path, data, profile)
 
         logger.info("Saved WorldCover to %s", out_path)
-        return {
+        from ..compact import stac_summary
+        payload = {
             "status": "success",
             "file_path": str(out_path),
             "item_id": item.id,
             "collection": coll,
             "year": year,
             "asset": asset_key,
-            "properties": item.properties,
+            "summary": stac_summary(item.properties),
         }
+        if include_properties:
+            payload["properties"] = item.properties
+        return payload
     except Exception as e:
         logger.exception("Failed to download WorldCover")
         return {"status": "error", "message": str(e)}
@@ -256,7 +261,8 @@ def compute_s2_ndvi(
     geometry_geojson: Optional[str] = None,
     out_crs: Optional[str] = "EPSG:4326",
     filename: Optional[str] = None,
-    path: Optional[str] = None
+    path: Optional[str] = None,
+    include_properties: bool = True,
 ) -> Dict[str, Any]:
     """
     Compute NDVI from Sentinel-2 L2A (B08=NIR, B04=Red) for an AOI/time window via MPC.
@@ -329,14 +335,18 @@ def compute_s2_ndvi(
         _write_gtiff(out_path, ndvi, out_profile)
 
         logger.info("Saved NDVI to %s", out_path)
-        return {
+        from ..compact import stac_summary
+        payload = {
             "status": "success",
             "file_path": str(out_path),
             "item_id": item.id,
             "collection": collection,
             "assets": ["B08", "B04"],
-            "properties": item.properties,
+            "summary": stac_summary(item.properties),
         }
+        if include_properties:
+            payload["properties"] = item.properties
+        return payload
     except Exception as e:
         logger.exception("Failed to compute NDVI")
         return {"status": "error", "message": str(e)}

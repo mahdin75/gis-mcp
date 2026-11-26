@@ -106,46 +106,115 @@ def get_crs_info(crs: str) -> Dict[str, Any]:
         logger.error(f"Error getting CRS info: {str(e)}")
         raise ValueError(f"Failed to get CRS info: {str(e)}")
 
+# Names are stored here so the default call does not scan the EPSG database.
+_COMMON_CRS = (
+    ("4326", "WGS 84", "Geographic 2D CRS"),
+    ("3857", "WGS 84 / Pseudo-Mercator", "Projected CRS"),
+    ("4269", "NAD83", "Geographic 2D CRS"),
+    ("4267", "NAD27", "Geographic 2D CRS"),
+    ("4979", "WGS 84", "Geographic 3D CRS"),
+    ("4978", "WGS 84", "Geocentric CRS"),
+    ("3395", "WGS 84 / World Mercator", "Projected CRS"),
+    ("32601", "WGS 84 / UTM zone 1N", "Projected CRS"),
+    ("32701", "WGS 84 / UTM zone 1S", "Projected CRS"),
+    ("2154", "RGF93 / Lambert-93", "Projected CRS"),
+    ("27700", "OSGB36 / British National Grid", "Projected CRS"),
+    ("25832", "ETRS89 / UTM zone 32N", "Projected CRS"),
+    ("3035", "ETRS89-extended / LAEA Europe", "Projected CRS"),
+    ("5070", "NAD83 / Conus Albers", "Projected CRS"),
+    ("6933", "WGS 84 / NSIDC EASE-Grid 2.0 Global", "Projected CRS"),
+    ("7844", "GDA2020", "Geographic 2D CRS"),
+    ("2193", "NZGD2000 / New Zealand Transverse Mercator 2000", "Projected CRS"),
+    ("24378", "Kalianpur 1975 / UTM zone 42N", "Projected CRS"),
+    ("2056", "CH1903+ / LV95", "Projected CRS"),
+    ("4087", "WGS 84 / World Equidistant Cylindrical", "Projected CRS"),
+)
+
+
 @gis_mcp.tool()
-def get_available_crs() -> Dict[str, Any]:
-    """Get list of available CRS."""
+def get_available_crs(query: Optional[str] = None, limit: int = 100) -> Dict[str, Any]:
+    """List EPSG coordinate reference systems. query filters by code or name. limit caps the list (default 100, same as before)."""
     try:
+        limit = max(1, min(int(limit), 100))
+        if not query:
+            import pyproj
+            from pyproj.database import get_codes
+            from pyproj.enums import PJType
+
+            crs_list = []
+            for code in list(get_codes("EPSG", PJType.CRS))[:limit]:
+                try:
+                    crs_obj = pyproj.CRS.from_epsg(int(code))
+                    crs_list.append({
+                        "auth_name": "EPSG",
+                        "code": str(code),
+                        "name": crs_obj.name,
+                        "type": crs_obj.type_name,
+                    })
+                except Exception as ex:
+                    logger.debug(f"Skipping EPSG:{code}: {str(ex)}")
+                    continue
+            if not crs_list:
+                crs_list = [
+                    {"auth_name": "EPSG", "code": code, "name": name, "type": crs_type}
+                    for code, name, crs_type in _COMMON_CRS[:limit]
+                ]
+            return {
+                "status": "success",
+                "count": len(crs_list),
+                "limit": limit,
+                "crs_list": crs_list,
+                "message": "Available CRS list retrieved successfully",
+            }
+
         import pyproj
         from pyproj.database import get_codes
         from pyproj.enums import PJType
-        
+
+        needle = query.strip().lower()
         crs_list = []
-        # Get a sample of common EPSG codes (limit to avoid huge lists)
-        epsg_codes = list(get_codes("EPSG", PJType.CRS))[:100]  # Limit to first 100 for performance
-        
-        for code in epsg_codes:
-            try:
-                # Directly create CRS and get info without calling the tool function
-                crs_obj = pyproj.CRS.from_epsg(int(code))
+        for code, name, crs_type in _COMMON_CRS:
+            if needle in code or needle in name.lower():
                 crs_list.append({
                     "auth_name": "EPSG",
-                    "code": str(code),
-                    "name": crs_obj.name,
-                    "type": crs_obj.type_name
+                    "code": code,
+                    "name": name,
+                    "type": crs_type,
                 })
-            except Exception as ex:
-                # Skip invalid CRS codes
-                logger.debug(f"Skipping EPSG:{code}: {str(ex)}")
-                continue
-        
-        if not crs_list:
-            # Fallback: return some well-known CRS
-            well_known_crs = [
-                {"auth_name": "EPSG", "code": "4326", "name": "WGS 84", "type": "Geographic 2D CRS"},
-                {"auth_name": "EPSG", "code": "3857", "name": "WGS 84 / Pseudo-Mercator", "type": "Projected CRS"},
-                {"auth_name": "EPSG", "code": "4269", "name": "NAD83", "type": "Geographic 2D CRS"},
-            ]
-            crs_list = well_known_crs
-        
+            if len(crs_list) >= limit:
+                break
+
+        scanned = 0
+        if len(crs_list) < limit:
+            for code in get_codes("EPSG", PJType.CRS):
+                scanned += 1
+                if scanned > 400:
+                    break
+                code_text = str(code)
+                if any(item["code"] == code_text for item in crs_list):
+                    continue
+                try:
+                    crs_obj = pyproj.CRS.from_epsg(int(code))
+                except Exception:
+                    continue
+                if needle not in code_text and needle not in crs_obj.name.lower():
+                    continue
+                crs_list.append({
+                    "auth_name": "EPSG",
+                    "code": code_text,
+                    "name": crs_obj.name,
+                    "type": crs_obj.type_name,
+                })
+                if len(crs_list) >= limit:
+                    break
+
         return {
             "status": "success",
+            "count": len(crs_list),
+            "limit": limit,
+            "truncated": len(crs_list) >= limit,
             "crs_list": crs_list,
-            "message": "Available CRS list retrieved successfully"
+            "message": "Available CRS list retrieved successfully",
         }
     except Exception as e:
         logger.error(f"Error getting available CRS: {str(e)}")

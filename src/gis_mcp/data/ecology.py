@@ -15,7 +15,7 @@ def get_ecology_operations() -> dict:
     return {"operations": ["download_species_occurrences", "get_species_info"]}
 
 @gis_mcp.tool()
-def get_species_info(scientific_name: str) -> Dict[str, Any]:
+def get_species_info(scientific_name: str, full: bool = True) -> Dict[str, Any]:
     """
     Retrieve taxonomic information for a given species name.
     Args:
@@ -25,8 +25,10 @@ def get_species_info(scientific_name: str) -> Dict[str, Any]:
     """
     try:
         result = species.name_backbone(name=scientific_name)
-        logger.info("Retrieved species info for %s: %s", scientific_name, result)
-        return {"status": "success", "species_info": result}
+        logger.info("Retrieved species info for %s", scientific_name)
+        from ..compact import species_summary
+        payload = result if full else species_summary(result)
+        return {"status": "success", "species_info": payload}
     except Exception as e:
         logger.exception("Failed to retrieve species info")
         return {"status": "error", "message": str(e)}

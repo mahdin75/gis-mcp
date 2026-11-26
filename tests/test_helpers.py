@@ -30,14 +30,22 @@ async def call_tool(tool_name: str, **kwargs):
 
 def get_result_data(result):
     """
-    Extract data from CallToolResult object.
-    
-    According to FastMCP docs (https://gofastmcp.com/patterns/testing),
-    result.data contains the actual return value from the tool.
+    Extract data from a CallToolResult.
+
+    Structured content is omitted by default to avoid sending the same JSON
+    twice. Fall back to the text content block, which remains the MCP payload.
     """
-    if hasattr(result, 'data'):
-        return result.data
-    elif hasattr(result, 'text'):
+    data = getattr(result, "data", None)
+    if data is not None:
+        return data
+    content = getattr(result, "content", None) or []
+    if content:
+        text = getattr(content[0], "text", None)
+        if text:
+            try:
+                return json.loads(text)
+            except json.JSONDecodeError:
+                return {"message": text}
+    if hasattr(result, "text"):
         return json.loads(result.text)
-    else:
-        return result
+    return result

@@ -266,15 +266,33 @@ def get_bounds(geometry: str) -> Dict[str, Any]:
         raise ValueError(f"Failed to calculate bounds: {str(e)}")
 
 @gis_mcp.tool()
-def get_coordinates(geometry: str) -> Dict[str, Any]:
-    """Get the coordinates of a geometry."""
+def get_coordinates(
+    geometry: str,
+    precision: Optional[int] = None,
+    max_coords: Optional[int] = None,
+    offset: int = 0,
+) -> Dict[str, Any]:
+    """List coordinates of a point or line. precision rounds values. max_coords and offset page long lines."""
     try:
         from shapely import wkt
         geom = wkt.loads(geometry)
+        coordinates = [list(coord) for coord in geom.coords]
+        if precision is not None:
+            digits = int(precision)
+            coordinates = [[round(float(value), digits) for value in coord] for coord in coordinates]
+        total = len(coordinates)
+        offset = max(0, int(offset))
+        if max_coords is not None:
+            coordinates = coordinates[offset : offset + max(0, int(max_coords))]
+        elif offset:
+            coordinates = coordinates[offset:]
         return {
             "status": "success",
-            "coordinates": [list(coord) for coord in geom.coords],
-            "message": "Coordinates retrieved successfully"
+            "coordinate_count": total,
+            "offset": offset,
+            "truncated": offset + len(coordinates) < total,
+            "coordinates": coordinates,
+            "message": "Coordinates retrieved successfully",
         }
     except Exception as e:
         logger.error(f"Error getting coordinates: {str(e)}")

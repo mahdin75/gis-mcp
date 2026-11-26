@@ -6,6 +6,7 @@ import geopandas as gpd
 import pandas as pd
 from typing import Any, Dict, List, Optional, Union
 from .mcp import gis_mcp
+from .compact import cap_sequence, table_preview
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -82,9 +83,7 @@ def getis_ord_g(
         getis = esda.G(dependent, w)
 
         # Prepare GeoDataFrame preview
-        preview = gdf[['geometry', dependent_var]].copy()
-        preview['geometry'] = preview['geometry'].apply(lambda g: g.wkt)
-        preview = preview.head(5).to_dict(orient="records")
+        preview = table_preview(gdf, [dependent_var])
 
         return {
             "status": "success",
@@ -143,9 +142,7 @@ def morans_i(shapefile_path: str, dependent_var: str = "LAND_USE", target_crs: s
 
     import esda
     stat = esda.Moran(y, w)
-    preview = gdf[['geometry', dependent_var]].head(5).assign(
-        geometry=lambda df: df.geometry.apply(lambda g: g.wkt)
-    ).to_dict(orient="records")
+    preview = table_preview(gdf, [dependent_var])
 
     return {
         "status": "success",
@@ -169,9 +166,7 @@ def gearys_c(shapefile_path: str, dependent_var: str = "LAND_USE", target_crs: s
 
     import esda
     stat = esda.Geary(y, w)
-    preview = gdf[['geometry', dependent_var]].head(5).assign(
-        geometry=lambda df: df.geometry.apply(lambda g: g.wkt)
-    ).to_dict(orient="records")
+    preview = table_preview(gdf, [dependent_var])
 
     return {
         "status": "success",
@@ -195,9 +190,7 @@ def gamma_statistic(shapefile_path: str, dependent_var: str = "LAND_USE", target
 
     import esda
     stat = esda.Gamma(y, w)
-    preview = gdf[['geometry', dependent_var]].head(5).assign(
-        geometry=lambda df: df.geometry.apply(lambda g: g.wkt)
-    ).to_dict(orient="records")
+    preview = table_preview(gdf, [dependent_var])
 
     # Gamma statistic - check for available attributes
     gamma_val = None
@@ -227,7 +220,7 @@ def gamma_statistic(shapefile_path: str, dependent_var: str = "LAND_USE", target
 
 @gis_mcp.tool()
 def moran_local(shapefile_path: str, dependent_var: str = "LAND_USE", target_crs: str = "EPSG:4326",
-                distance_threshold: float = 100000) -> Dict[str, Any]:
+                distance_threshold: float = 100000, max_records: Optional[int] = None) -> Dict[str, Any]:
     """Local Moran's I."""
     gdf, y, w, (threshold, unit), err = pysal_load_data(shapefile_path, dependent_var, target_crs, distance_threshold)
     if err:
@@ -263,25 +256,24 @@ def moran_local(shapefile_path: str, dependent_var: str = "LAND_USE", target_crs
 
     import esda
     stat = esda.Moran_Local(y, w)
-    preview = gdf[['geometry', dependent_var]].head(5).copy()
-    preview['geometry'] = preview['geometry'].apply(lambda g: g.wkt)
+    preview = table_preview(gdf, [dependent_var])
 
-    # Return local statistics array summary
     return {
         "status": "success",
         "message": f"Local Moran's I completed successfully (threshold: {threshold} {unit})",
         "result": {
-            "Is": stat.Is.tolist() if hasattr(stat.Is, 'tolist') else list(stat.Is),
-            "p_values": stat.p_sim.tolist() if hasattr(stat.p_sim, 'tolist') else list(stat.p_sim),
-            "z_scores": stat.z_sim.tolist() if hasattr(stat.z_sim, 'tolist') else list(stat.z_sim),
-            "data_preview": preview.to_dict(orient="records")
+            "count": int(len(gdf)),
+            "Is": cap_sequence(stat.Is, max_records),
+            "p_values": cap_sequence(stat.p_sim, max_records),
+            "z_scores": cap_sequence(stat.z_sim, max_records),
+            "data_preview": preview,
         }
     }
 
 
 @gis_mcp.tool()
 def getis_ord_g_local(shapefile_path: str, dependent_var: str = "LAND_USE", target_crs: str = "EPSG:4326",
-                      distance_threshold: float = 100000) -> Dict[str, Any]:
+                      distance_threshold: float = 100000, max_records: Optional[int] = None) -> Dict[str, Any]:
     """Local Getis-Ord G."""
     gdf, y, w, (threshold, unit), err = pysal_load_data(shapefile_path, dependent_var, target_crs, distance_threshold)
     if err:
@@ -317,17 +309,17 @@ def getis_ord_g_local(shapefile_path: str, dependent_var: str = "LAND_USE", targ
 
     import esda
     stat = esda.G_Local(y, w)
-    preview = gdf[['geometry', dependent_var]].head(5).copy()
-    preview['geometry'] = preview['geometry'].apply(lambda g: g.wkt)
+    preview = table_preview(gdf, [dependent_var])
 
     return {
         "status": "success",
         "message": f"Local Getis-Ord G completed successfully (threshold: {threshold} {unit})",
         "result": {
-            "G_local": stat.Gs.tolist() if hasattr(stat.Gs, 'tolist') else list(stat.Gs),
-            "p_values": stat.p_sim.tolist() if hasattr(stat.p_sim, 'tolist') else list(stat.p_sim),
-            "z_scores": stat.z_sim.tolist() if hasattr(stat.z_sim, 'tolist') else list(stat.z_sim),
-            "data_preview": preview.to_dict(orient="records")
+            "count": int(len(gdf)),
+            "G_local": cap_sequence(stat.Gs, max_records),
+            "p_values": cap_sequence(stat.p_sim, max_records),
+            "z_scores": cap_sequence(stat.z_sim, max_records),
+            "data_preview": preview
         }
     }
 
@@ -343,8 +335,7 @@ def join_counts(shapefile_path: str, dependent_var: str = "LAND_USE", target_crs
     # Join counts requires binary/categorical data - user must ensure y is binary (0/1 or True/False)
     import esda
     stat = esda.Join_Counts(y, w)
-    preview = gdf[['geometry', dependent_var]].head(5).copy()
-    preview['geometry'] = preview['geometry'].apply(lambda g: g.wkt)
+    preview = table_preview(gdf, [dependent_var])
 
     # Join_Counts attributes: J (total joins), bb, ww, bw, etc.
     join_count_val = None
@@ -388,14 +379,14 @@ def join_counts(shapefile_path: str, dependent_var: str = "LAND_USE", target_crs
             "variance": safe_float(variance_val),
             "z_score": safe_float(z_score_val),
             "p_value": p_val,
-            "data_preview": preview.to_dict(orient="records")
+            "data_preview": preview
         }
     }
 
 
 @gis_mcp.tool()
 def join_counts_local(shapefile_path: str, dependent_var: str = "LAND_USE", target_crs: str = "EPSG:4326",
-                      distance_threshold: float = 100000) -> Dict[str, Any]:
+                      distance_threshold: float = 100000, max_records: Optional[int] = None) -> Dict[str, Any]:
     """Local Join Counts."""
     gdf, y, w, (threshold, unit), err = pysal_load_data(shapefile_path, dependent_var, target_crs, distance_threshold)
     if err:
@@ -431,31 +422,31 @@ def join_counts_local(shapefile_path: str, dependent_var: str = "LAND_USE", targ
 
     import esda
     stat = esda.Join_Counts_Local(y, w)
-    preview = gdf[['geometry', dependent_var]].head(5).copy()
-    preview['geometry'] = preview['geometry'].apply(lambda g: g.wkt)
+    preview = table_preview(gdf, [dependent_var])
 
     # Join_Counts_Local has LJC attribute
     ljc_val = None
     if hasattr(stat, "LJC"):
-        ljc_val = stat.LJC.tolist() if hasattr(stat.LJC, "tolist") else list(stat.LJC)
+        ljc_val = cap_sequence(stat.LJC, max_records)
     elif hasattr(stat, "local_join_counts"):
-        ljc_val = stat.local_join_counts.tolist() if hasattr(stat.local_join_counts, "tolist") else list(stat.local_join_counts)
+        ljc_val = cap_sequence(stat.local_join_counts, max_records)
     elif hasattr(stat, "ljc"):
-        ljc_val = stat.ljc.tolist() if hasattr(stat.ljc, "tolist") else list(stat.ljc)
+        ljc_val = cap_sequence(stat.ljc, max_records)
     
     return {
         "status": "success",
         "message": f"Local Join Counts completed successfully (threshold: {threshold} {unit})",
         "result": {
             "local_join_counts": ljc_val,
-            "data_preview": preview.to_dict(orient="records")
+            "data_preview": preview
         }
     }
 
 
 @gis_mcp.tool()
 def adbscan(shapefile_path: str, dependent_var: str = None, target_crs: str = "EPSG:4326",
-            distance_threshold: float = 100000, eps: float = 0.1, min_samples: int = 5) -> Dict[str, Any]:
+            distance_threshold: float = 100000, eps: float = 0.1, min_samples: int = 5,
+            max_records: Optional[int] = None) -> Dict[str, Any]:
     """Adaptive DBSCAN clustering (requires coordinates, no dependent_var)."""
     if not os.path.exists(shapefile_path):
         return {"status": "error", "message": f"Shapefile not found: {shapefile_path}"}
@@ -480,15 +471,14 @@ def adbscan(shapefile_path: str, dependent_var: str = None, target_crs: str = "E
         else:
             raise
 
-    preview = gdf[['geometry']].head(5).copy()
-    preview['geometry'] = preview['geometry'].apply(lambda g: g.wkt)
+    preview = table_preview(gdf, ["id"] if "id" in gdf.columns else [])
 
     # ADBSCAN attributes - check for available attributes
     labels_val = None
     if hasattr(stat, "labels_"):
-        labels_val = stat.labels_.tolist() if hasattr(stat.labels_, "tolist") else list(stat.labels_)
+        labels_val = cap_sequence(stat.labels_, max_records)
     elif hasattr(stat, "labels"):
-        labels_val = stat.labels.tolist() if hasattr(stat.labels, "tolist") else list(stat.labels)
+        labels_val = cap_sequence(stat.labels, max_records)
     
     core_indices_val = None
     if hasattr(stat, "core_sample_indices_"):
@@ -509,7 +499,7 @@ def adbscan(shapefile_path: str, dependent_var: str = None, target_crs: str = "E
             "labels": labels_val,
             "core_sample_indices": core_indices_val,
             "components": components_val,
-            "data_preview": preview.to_dict(orient="records")
+            "data_preview": preview
         }
     }
 
@@ -562,7 +552,7 @@ def weights_from_shapefile(shapefile_path: str, contiguity: str = "queen", id_fi
             "status": "success",
             "message": "Spatial weights constructed successfully",
             "result": result,
-            "weights_info": result,  # Also include as weights_info for test compatibility
+            "weights_info": result
         }
 
     except Exception as e:
@@ -662,7 +652,7 @@ def distance_band_weights(
             "status": "success",
             "message": "DistanceBand spatial weights constructed successfully",
             "result": result,
-            "weights_info": result,  # Also include as weights_info for test compatibility
+            "weights_info": result
         }
 
     except Exception as e:
@@ -768,7 +758,7 @@ def knn_weights(
             "status": "success",
             "message": "KNN spatial weights constructed successfully",
             "result": result,
-            "weights_info": result,  # Also include as weights_info for test compatibility
+            "weights_info": result
         }
 
     except Exception as e:
@@ -1131,7 +1121,7 @@ def build_and_transform_weights(
             "status": "success",
             "message": f"{method} spatial weights built and transformed successfully",
             "result": result,
-            "weights_info": result,  # Also include as weights_info for test compatibility
+            "weights_info": result
         }
 
     except Exception as e:
@@ -1272,12 +1262,7 @@ def spatial_markov(
                 except Exception:
                     return x
 
-        # Safer preview: keep geometry, write WKT to a new column, then drop geometry
-        preview = gdf[[*value_cols, "geometry"]].head(5).copy()
-        preview["geometry_wkt"] = preview["geometry"].apply(
-            lambda g: g.wkt if g is not None and not g.is_empty else None
-        )
-        preview = pd.DataFrame(preview.drop(columns="geometry")).to_dict(orient="records")
+        preview = table_preview(gdf, value_cols, geometry_key="geometry_wkt")
 
         result = {
             "n_regions": int(Y.shape[0]),
@@ -1419,16 +1404,7 @@ def dynamic_lisa(
             larger_perm = np.asarray(getattr(rose, "larger_perm", [])).tolist()
             smaller_perm = np.asarray(getattr(rose, "smaller_perm", [])).tolist()
 
-        # preview
-        def _wkt_safe(g):
-            try:
-                return g.wkt
-            except Exception:
-                return str(g)
-
-        preview = gdf[[*cols, gdf.geometry.name]].head(5).copy()
-        preview[gdf.geometry.name] = preview[gdf.geometry.name].apply(_wkt_safe)
-        preview = preview.rename(columns={gdf.geometry.name: "geometry_wkt"}).to_dict(orient="records")
+        preview = table_preview(gdf, cols, geometry_key="geometry_wkt")
 
         result = {
             "n_regions": int(Y.shape[0]),
@@ -1437,8 +1413,8 @@ def dynamic_lisa(
             "value_columns": cols,
             "cuts_radians": np.asarray(rose.cuts).tolist(),        # sector edges
             "sector_counts": np.asarray(rose.counts).tolist(),     # count per sector
-            "angles_theta_rad": np.asarray(rose.theta).tolist(),   # one per region
-            "vector_lengths_r": np.asarray(rose.r).tolist(),       # one per region
+            "angles_theta_rad": np.asarray(rose.theta).tolist(),
+            "vector_lengths_r": np.asarray(rose.r).tolist(),
             "bins_used": np.asarray(rose.bins).tolist(),
             "inference": {
                 "permutations": int(permutations),
@@ -1621,10 +1597,7 @@ def gm_lag(
             # z_stat is list of (z, p)
             return [{"z": float(zp[0]), "p": float(zp[1])} for zp in (z_list or [])]
 
-        # tiny preview (avoid geometry dtype issues)
-        preview = gdf.loc[data.index, [y_col, *x_cols_list, gdf.geometry.name]].head(5).copy()
-        preview["geometry_wkt"] = preview[gdf.geometry.name].apply(lambda g: g.wkt if g is not None else None)
-        preview = pd.DataFrame(preview.drop(columns=[gdf.geometry.name])).to_dict(orient="records")
+        preview = table_preview(gdf.loc[data.index], [y_col, *x_cols_list], geometry_key="geometry_wkt")
 
         result = {
             "n_obs": int(reg.n),

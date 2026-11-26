@@ -229,6 +229,7 @@ html, body { height: 100%; width: 100%; margin: 0; padding: 0; }
     <nav class="nav-links">
       <a href="getting-started/">Getting Started</a>
       <a href="architecture/">Architecture</a>
+      <a href="TOKEN_OPTIMIZATION_BENCHMARK/">Benchmark</a>
       <a href="gis-ai-agent/">GIS AI Agent</a>
       <a href="install/">Installations</a>
       <a href="api/shapely/">API Reference</a>

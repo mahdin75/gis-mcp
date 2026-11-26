@@ -227,7 +227,8 @@ def download_satellite_imagery(
     geometry_geojson: Optional[str] = None,
     out_crs: Optional[str] = None,
     filename: Optional[str] = None,
-    path: Optional[str] = None
+    path: Optional[str] = None,
+    include_properties: bool = True,
 ) -> Dict[str, Any]:
     """
     Download analysis-ready satellite imagery from Microsoft Planetary Computer (STAC + SAS).
@@ -303,15 +304,19 @@ def download_satellite_imagery(
 
         logger.info("Saved satellite imagery (%s) to %s", assets, out_path)
 
-        return {
+        from ..compact import stac_summary
+        payload = {
             "status": "success",
             "file_path": str(out_path),
             "item_id": item.id,
             "collection": collection,
             "assets": [a for a in assets if a not in missing_assets],
             "missing_assets": missing_assets,
-            "properties": item.properties,
+            "summary": stac_summary(item.properties),
         }
+        if include_properties:
+            payload["properties"] = item.properties
+        return payload
 
     except Exception as e:
         logger.exception("Failed to download satellite imagery")
