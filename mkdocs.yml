@@ -32,6 +32,10 @@ nav:
           - Storage Configuration: storage-configuration.md
           - HTTP Transport: http-transport.md
           - Server Endpoints: endpoints.md
+          - Token optimization:
+              - Audit: TOKEN_OPTIMIZATION_AUDIT.md
+              - Architecture: TOKEN_OPTIMIZATION_ARCHITECTURE.md
+              - Benchmark: TOKEN_OPTIMIZATION_BENCHMARK.md
       - GIS AI Agent:
           - Overview: gis-ai-agent/README.md
           - Agent architecture: gis-ai-agent/architecture.md

@@ -52,7 +52,7 @@ def _nodata_for_mask(src) -> float:
 
 
 @gis_mcp.tool()
-def zonal_statistics(raster_path: str, vector_path: str, stats: list = None) -> Dict[str, Any]:
+def zonal_statistics(raster_path: str, vector_path: str, stats: list = None, max_features: Optional[int] = None, offset: int = 0) -> Dict[str, Any]:
     """
     Calculate statistics of raster values within polygons (zonal statistics).
     Args:
@@ -94,10 +94,20 @@ def zonal_statistics(raster_path: str, vector_path: str, stats: list = None) -> 
                     if "count" in stats:
                         stat_result["count"] = int(data.size)
                 results.append(stat_result)
+        total = len(results)
+        offset = max(0, int(offset))
+        if max_features is None:
+            page = results[offset:]
+        else:
+            page = results[offset : offset + max(0, int(max_features))]
         return {
             "status": "success",
             "message": "Zonal statistics computed successfully.",
-            "results": results
+            "total": total,
+            "offset": offset,
+            "returned": len(page),
+            "truncated": offset + len(page) < total,
+            "results": page,
         }
     except Exception as e:
         logger.error(f"Error in zonal_statistics: {str(e)}")
@@ -1030,7 +1040,8 @@ def tile_raster(
 @gis_mcp.tool()
 def raster_histogram(
     source: str,
-    bins: int = 256
+    bins: int = 256,
+    compact: bool = False,
 ) -> Dict[str, Any]:
     """
     Compute histogram of pixel values for each band.
@@ -1046,20 +1057,28 @@ def raster_histogram(
 
         src_path = os.path.expanduser(source.replace("`", ""))
         histograms = {}
+        use_bins = max(1, min(int(bins), 32) if compact else int(bins))
 
         with rasterio.open(src_path) as src:
             for i in range(1, src.count + 1):
                 band = src.read(i, masked=True)
-                hist, bin_edges = np.histogram(band.compressed(), bins=bins)
+                values = band.compressed()
+                hist, bin_edges = np.histogram(values, bins=use_bins)
+                edges = bin_edges.tolist()
+                if compact:
+                    edges = [round(float(edge), 6) for edge in edges]
                 histograms[f"Band {i}"] = {
                     "histogram": hist.tolist(),
-                    "bin_edges": bin_edges.tolist()
+                    "bin_edges": edges,
+                    "bins": use_bins,
+                    "count": int(values.size),
+                    "compact": bool(compact),
                 }
 
         return {
             "status": "success",
             "histograms": histograms,
-            "message": f"Histogram computed for all bands."
+            "message": "Histogram computed for all bands.",
         }
 
     except Exception as e:

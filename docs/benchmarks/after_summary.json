@@ -1,0 +1,54 @@
+{
+  "tokenizer_note": "chars_div_4 is len/4. cl100k is tiktoken cl100k_base when installed, otherwise null. Neither is a live Claude or Cursor bill.",
+  "tool_count_before": 87,
+  "tool_count_after": 87,
+  "payload_chars_before": 46237,
+  "payload_chars_after": 32554,
+  "payload_tokens_before_chars_div_4": 11560,
+  "payload_tokens_after": {
+    "chars": 32554,
+    "chars_div_4": 8139,
+    "cl100k": 7440
+  },
+  "description_chars_before": 14643,
+  "description_chars_after": 6137,
+  "input_schema_chars_before": 18110,
+  "input_schema_chars_after": 21286,
+  "output_schema_chars_before": 3915,
+  "output_schema_chars_after": 0,
+  "meta_chars_before": 2088,
+  "meta_chars_after": 0,
+  "shared_description_chars_before": 14643,
+  "shared_description_chars_after": 6137,
+  "description_tokens_before": {
+    "chars": 14729,
+    "chars_div_4": 3683,
+    "cl100k": 3440
+  },
+  "description_tokens_after": {
+    "chars": 6223,
+    "chars_div_4": 1556,
+    "cl100k": 1349
+  },
+  "average_description_chars_before": 168.3,
+  "average_description_chars_after": 70.5,
+  "average_input_schema_chars_before": 208.2,
+  "average_input_schema_chars_after": 244.7,
+  "preview": {
+    "features": 200,
+    "page": 5,
+    "with_geometry_chars": 3921,
+    "without_geometry_chars": 121,
+    "with_geometry_tokens": {
+      "chars": 3921,
+      "chars_div_4": 981,
+      "cl100k": 2153
+    },
+    "without_geometry_tokens": {
+      "chars": 121,
+      "chars_div_4": 31,
+      "cl100k": 47
+    }
+  },
+  "structured_content": "FastMCP 2.13 copies dict results into content and structuredContent. Both copies are sent unless GIS_MCP_STRUCTURED_CONTENT=0. The default keeps structuredContent so existing clients still receive it."
+}

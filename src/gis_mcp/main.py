@@ -93,6 +93,23 @@ def main():
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="GIS MCP Server")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    parser.add_argument(
+        "--modules",
+        type=str,
+        default=None,
+        help=(
+            "Comma-separated tool groups to expose. "
+            "Groups: geometry, vector, raster, crs, statistics, io, visualize, "
+            "boundaries, climate, ecology, movement, satellite, landcover. "
+            "Default: all. Overrides GIS_MCP_MODULES."
+        ),
+    )
+    parser.add_argument(
+        "--exclude-modules",
+        type=str,
+        default=None,
+        help="Comma-separated tool groups to hide. Overrides GIS_MCP_EXCLUDE.",
+    )
     parser.add_argument("--storage-path", type=str, default=None,
                        help="Path to storage folder for file operations (default: ~/.gis_mcp/data/)")
     parser.add_argument(
@@ -140,6 +157,16 @@ def main():
     adapter = get_storage_adapter()
     logger.info(f"Storage initialized ({adapter.describe()})")
     logger.info(f"Local storage path: {storage_path}")
+
+    # Optional integrations are imported above. Finalize again so their tools
+    # get short descriptions, group tags, and no empty output schema.
+    from .catalog import finalize_catalog
+    from .tool_groups import apply_module_filter, enabled_tool_names
+
+    finalize_catalog(gis_mcp)
+    apply_module_filter(gis_mcp, modules=args.modules, exclude=args.exclude_modules)
+    exposed = list(enabled_tool_names(gis_mcp))
+    logger.info("Exposing %s MCP tools", len(exposed))
     
     # Get transport configuration from environment variables
     transport = os.getenv('GIS_MCP_TRANSPORT', 'stdio').lower()

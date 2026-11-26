@@ -41,7 +41,7 @@ It enables AI agents to perform geospatial analysis, spatial data processing, ve
   <br/>
 </div>
 
-> Current version is 0.15.0 (Beta):
+> Current version is 0.16.0 (Beta):
 >
 > We welcome contributions and developers to join us in building this project.
 
@@ -101,6 +101,36 @@ GIS MCP Server empowers AI assistants with advanced geospatial intelligence. Key
 - 🔹 **Flexible & Extensible** – Supports Python-based GIS libraries and is ready for custom tools or workflow extensions.
 
 > 🌟 **Tip:** With GIS MCP Server, your AI can now “think spatially,” unlocking new capabilities for environmental analysis, mapping, and location intelligence.
+
+## MCP token use
+
+The server keeps the same tools and does the GIS work in Python. The catalog and tool results are trimmed so clients such as Claude Desktop, Cursor, and ChatGPT spend fewer tokens loading and calling the server.
+
+- Existing clients keep the same default results: full geometry previews, full CRS lists, full histograms, and `structuredContent`.
+- Tool descriptions are one sentence. Parameter types stay in the JSON schema.
+- Empty output schemas and FastMCP tag metadata are not sent.
+- Pass `include_geometry=false`, `compact=true`, `max_features`, `max_records`, or `limit` when a smaller payload is enough. Set `GIS_MCP_STRUCTURED_CONTENT=0` to skip the duplicate structured copy.
+- Start a smaller catalog with `--modules geometry,vector` or `GIS_MCP_MODULES`. The default is still every installed tool.
+
+Details: [audit](docs/TOKEN_OPTIMIZATION_AUDIT.md), [architecture](docs/TOKEN_OPTIMIZATION_ARCHITECTURE.md), [benchmark](docs/TOKEN_OPTIMIZATION_BENCHMARK.md).
+
+```bash
+gis-mcp --modules geometry,crs,vector
+```
+
+```json
+{
+  "mcpServers": {
+    "gis-mcp": {
+      "command": "gis-mcp",
+      "env": {
+        "GIS_MCP_MODULES": "geometry,vector,raster",
+        "GIS_MCP_EXCLUDE": "statistics"
+      }
+    }
+  }
+}
+```
 
 ---
 

@@ -4,6 +4,8 @@ import logging
 from typing import Any, Dict, List, Optional
 from .mcp import gis_mcp
 from .storage_config import resolve_path
+from .compact import vector_preview
+from .gdf_cache import read_vector
 import geopandas as gpd
 import pandas as pd
 
@@ -39,19 +41,33 @@ def get_geopandas_joins() -> Dict[str, List[str]]:
     }
 
 @gis_mcp.tool()
-def read_file_gpd(file_path: str) -> Dict[str, Any]:
-    """Reads a geospatial file and returns stats and a data preview."""
+def read_file_gpd(
+    file_path: str,
+    max_features: int = 5,
+    offset: int = 0,
+    columns: Optional[str] = None,
+    include_geometry: bool = True,
+    precision: Optional[int] = None,
+    bbox: Optional[str] = None,
+    simplify: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Summarize a vector file: row count, columns, CRS, bounds, and a short attribute preview."""
     try:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"File not found: {file_path}")
 
-        gdf = gpd.read_file(file_path)
-        # Convert geometry to WKT for serialization
-        preview_df = gdf.head(5).copy()
-        if 'geometry' in preview_df.columns:
-            preview_df['geometry'] = preview_df['geometry'].apply(lambda g: g.wkt if g is not None else None)
-        preview = preview_df.to_dict(orient="records")
-        
+        gdf = read_vector(file_path)
+        page = vector_preview(
+            gdf,
+            max_features=max_features,
+            offset=offset,
+            columns=columns,
+            include_geometry=include_geometry,
+            precision=precision,
+            bbox=bbox,
+            simplify=simplify,
+        )
+
         return {
             "status": "success",
             "columns": list(gdf.columns),
@@ -59,9 +75,13 @@ def read_file_gpd(file_path: str) -> Dict[str, Any]:
             "num_rows": len(gdf),
             "num_columns": gdf.shape[1],
             "crs": str(gdf.crs),
-            "bounds": gdf.total_bounds.tolist(),  # [minx, miny, maxx, maxy]
-            "preview": preview,
-            "message": f"File loaded successfully with {len(gdf)} rows and {gdf.shape[1]} columns"
+            "bounds": gdf.total_bounds.tolist(),
+            "preview": page["preview"],
+            "returned": page["returned"],
+            "offset": page["offset"],
+            "matched": page["matched"],
+            "truncated": page["truncated"],
+            "message": f"File loaded successfully with {len(gdf)} rows and {gdf.shape[1]} columns",
         }
 
     except Exception as e:
@@ -81,10 +101,10 @@ def append_gpd(shapefile1_path: str, shapefile2_path: str, output_path: str) -> 
 
         # Step 1: Read the two shapefiles into GeoDataFrames.
         logger.info(f"Reading {shapefile1_path}...")
-        gdf1 = gpd.read_file(shapefile1_path)
+        gdf1 = read_vector(shapefile1_path)
         
         logger.info(f"Reading {shapefile2_path}...")
-        gdf2 = gpd.read_file(shapefile2_path)
+        gdf2 = read_vector(shapefile2_path)
 
         # Step 2: Ensure the Coordinate Reference Systems (CRS) match.
         if gdf1.crs != gdf2.crs:
@@ -136,12 +156,12 @@ def merge_gpd(shapefile1_path: str, shapefile2_path: str, output_path: str) -> D
     try :
         # Step 1: Read the two shapefiles directly into GeoDataFrames.
         logger.info(f"Reading left shapefile: {shapefile1_path}...")
-        left_gdf = gpd.read_file(shapefile1_path)
+        left_gdf = read_vector(shapefile1_path)
         
         logger.info(f"Reading right shapefile: {shapefile2_path}...")
         # For an attribute join, we only need the attribute data from the right file.
         # We can drop its geometry column to make the merge cleaner and more memory-efficient.
-        right_df = pd.DataFrame(gpd.read_file(shapefile2_path).drop(columns='geometry'))
+        right_df = pd.DataFrame(read_vector(shapefile2_path).drop(columns='geometry'))
 
          # Step 2: Perform the merge operation using pandas.merge.
         # This function correctly handles the geometry of the left GeoDataFrame.
@@ -181,7 +201,7 @@ def merge_gpd(shapefile1_path: str, shapefile2_path: str, output_path: str) -> D
         raise ValueError(f"Failed to merge shapefiles: {str(e)}")
 
 @gis_mcp.tool()
-def overlay_gpd(gdf1_path: str, gdf2_path: str, how: str = "intersection", output_path: str = None) -> Dict[str, Any]:
+def overlay_gpd(gdf1_path: str, gdf2_path: str, how: str = "intersection", output_path: str = None, max_features: int = 5, offset: int = 0, columns: Optional[str] = None, include_geometry: bool = True, precision: Optional[int] = None) -> Dict[str, Any]:
     """
     Overlay two GeoDataFrames using geopandas.overlay.
     Args:
@@ -193,8 +213,8 @@ def overlay_gpd(gdf1_path: str, gdf2_path: str, how: str = "intersection", outpu
         Dictionary with status, message, and output info.
     """
     try:
-        gdf1 = gpd.read_file(gdf1_path)
-        gdf2 = gpd.read_file(gdf2_path)
+        gdf1 = read_vector(gdf1_path)
+        gdf2 = read_vector(gdf2_path)
         if gdf1.crs != gdf2.crs:
             gdf2 = gdf2.to_crs(gdf1.crs)
         result = gpd.overlay(gdf1, gdf2, how=how)
@@ -203,11 +223,15 @@ def overlay_gpd(gdf1_path: str, gdf2_path: str, how: str = "intersection", outpu
             output_path_resolved.parent.mkdir(parents=True, exist_ok=True)
             result.to_file(str(output_path_resolved))
             output_path = str(output_path_resolved)
-        # Convert geometry to WKT for serialization
-        preview_df = result.head(5).copy()
-        if 'geometry' in preview_df.columns:
-            preview_df['geometry'] = preview_df['geometry'].apply(lambda g: g.wkt if g is not None else None)
-        preview = preview_df.to_dict(orient="records")
+        page = vector_preview(
+            result,
+            max_features=max_features,
+            offset=offset,
+            columns=columns,
+            include_geometry=include_geometry,
+            precision=precision,
+        )
+        preview = page["preview"]
         return {
             "status": "success",
             "message": f"Overlay ({how}) completed successfully.",
@@ -215,6 +239,9 @@ def overlay_gpd(gdf1_path: str, gdf2_path: str, how: str = "intersection", outpu
             "crs": str(result.crs),
             "columns": list(result.columns),
             "preview": preview,
+            "returned": page["returned"],
+            "offset": page["offset"],
+            "truncated": page["truncated"],
             "output_path": output_path,
         }
     except Exception as e:
@@ -222,7 +249,7 @@ def overlay_gpd(gdf1_path: str, gdf2_path: str, how: str = "intersection", outpu
         return {"status": "error", "message": str(e)}
 
 @gis_mcp.tool()
-def dissolve_gpd(gdf_path: str, by: str = None, output_path: str = None) -> Dict[str, Any]:
+def dissolve_gpd(gdf_path: str, by: str = None, output_path: str = None, max_features: int = 5, offset: int = 0, columns: Optional[str] = None, include_geometry: bool = True, precision: Optional[int] = None) -> Dict[str, Any]:
     """
     Dissolve geometries by attribute using geopandas.dissolve.
     Args:
@@ -233,18 +260,22 @@ def dissolve_gpd(gdf_path: str, by: str = None, output_path: str = None) -> Dict
         Dictionary with status, message, and output info.
     """
     try:
-        gdf = gpd.read_file(gdf_path)
+        gdf = read_vector(gdf_path)
         result = gdf.dissolve(by=by)
         if output_path:
             output_path_resolved = resolve_path(output_path, relative_to_storage=True)
             output_path_resolved.parent.mkdir(parents=True, exist_ok=True)
             result.to_file(str(output_path_resolved))
             output_path = str(output_path_resolved)
-        # Convert geometry to WKT for serialization
-        preview_df = result.head(5).copy()
-        if 'geometry' in preview_df.columns:
-            preview_df['geometry'] = preview_df['geometry'].apply(lambda g: g.wkt if g is not None else None)
-        preview = preview_df.to_dict(orient="records")
+        page = vector_preview(
+            result,
+            max_features=max_features,
+            offset=offset,
+            columns=columns,
+            include_geometry=include_geometry,
+            precision=precision,
+        )
+        preview = page["preview"]
         return {
             "status": "success",
             "message": f"Dissolve completed successfully.",
@@ -252,6 +283,9 @@ def dissolve_gpd(gdf_path: str, by: str = None, output_path: str = None) -> Dict
             "crs": str(result.crs),
             "columns": list(result.columns),
             "preview": preview,
+            "returned": page["returned"],
+            "offset": page["offset"],
+            "truncated": page["truncated"],
             "output_path": output_path,
         }
     except Exception as e:
@@ -259,7 +293,7 @@ def dissolve_gpd(gdf_path: str, by: str = None, output_path: str = None) -> Dict
         return {"status": "error", "message": str(e)}
 
 @gis_mcp.tool()
-def explode_gpd(gdf_path: str, output_path: str = None) -> Dict[str, Any]:
+def explode_gpd(gdf_path: str, output_path: str = None, max_features: int = 5, offset: int = 0, columns: Optional[str] = None, include_geometry: bool = True, precision: Optional[int] = None) -> Dict[str, Any]:
     """
     Split multi-part geometries into single parts using geopandas.explode.
     Args:
@@ -269,18 +303,22 @@ def explode_gpd(gdf_path: str, output_path: str = None) -> Dict[str, Any]:
         Dictionary with status, message, and output info.
     """
     try:
-        gdf = gpd.read_file(gdf_path)
+        gdf = read_vector(gdf_path)
         result = gdf.explode(index_parts=True, ignore_index=True)
         if output_path:
             output_path_resolved = resolve_path(output_path, relative_to_storage=True)
             output_path_resolved.parent.mkdir(parents=True, exist_ok=True)
             result.to_file(str(output_path_resolved))
             output_path = str(output_path_resolved)
-        # Convert geometry to WKT for serialization
-        preview_df = result.head(5).copy()
-        if 'geometry' in preview_df.columns:
-            preview_df['geometry'] = preview_df['geometry'].apply(lambda g: g.wkt if g is not None else None)
-        preview = preview_df.to_dict(orient="records")
+        page = vector_preview(
+            result,
+            max_features=max_features,
+            offset=offset,
+            columns=columns,
+            include_geometry=include_geometry,
+            precision=precision,
+        )
+        preview = page["preview"]
         return {
             "status": "success",
             "message": "Explode completed successfully.",
@@ -288,6 +326,9 @@ def explode_gpd(gdf_path: str, output_path: str = None) -> Dict[str, Any]:
             "crs": str(result.crs),
             "columns": list(result.columns),
             "preview": preview,
+            "returned": page["returned"],
+            "offset": page["offset"],
+            "truncated": page["truncated"],
             "output_path": output_path,
         }
     except Exception as e:
@@ -295,7 +336,7 @@ def explode_gpd(gdf_path: str, output_path: str = None) -> Dict[str, Any]:
         return {"status": "error", "message": str(e)}
 
 @gis_mcp.tool()
-def clip_vector(gdf_path: str, clip_path: str, output_path: str = None) -> Dict[str, Any]:
+def clip_vector(gdf_path: str, clip_path: str, output_path: str = None, max_features: int = 5, offset: int = 0, columns: Optional[str] = None, include_geometry: bool = True, precision: Optional[int] = None) -> Dict[str, Any]:
     """
     Clip vector geometries using geopandas.clip.
     Args:
@@ -306,8 +347,8 @@ def clip_vector(gdf_path: str, clip_path: str, output_path: str = None) -> Dict[
         Dictionary with status, message, and output info.
     """
     try:
-        gdf = gpd.read_file(gdf_path)
-        clip_gdf = gpd.read_file(clip_path)
+        gdf = read_vector(gdf_path)
+        clip_gdf = read_vector(clip_path)
         if gdf.crs != clip_gdf.crs:
             clip_gdf = clip_gdf.to_crs(gdf.crs)
         result = gpd.clip(gdf, clip_gdf)
@@ -316,11 +357,15 @@ def clip_vector(gdf_path: str, clip_path: str, output_path: str = None) -> Dict[
             output_path_resolved.parent.mkdir(parents=True, exist_ok=True)
             result.to_file(str(output_path_resolved))
             output_path = str(output_path_resolved)
-        # Convert geometry to WKT for serialization
-        preview_df = result.head(5).copy()
-        if 'geometry' in preview_df.columns:
-            preview_df['geometry'] = preview_df['geometry'].apply(lambda g: g.wkt if g is not None else None)
-        preview = preview_df.to_dict(orient="records")
+        page = vector_preview(
+            result,
+            max_features=max_features,
+            offset=offset,
+            columns=columns,
+            include_geometry=include_geometry,
+            precision=precision,
+        )
+        preview = page["preview"]
         return {
             "status": "success",
             "message": "Clip completed successfully.",
@@ -328,6 +373,9 @@ def clip_vector(gdf_path: str, clip_path: str, output_path: str = None) -> Dict[
             "crs": str(result.crs),
             "columns": list(result.columns),
             "preview": preview,
+            "returned": page["returned"],
+            "offset": page["offset"],
+            "truncated": page["truncated"],
             "output_path": output_path,
         }
     except Exception as e:
@@ -335,7 +383,7 @@ def clip_vector(gdf_path: str, clip_path: str, output_path: str = None) -> Dict[
         return {"status": "error", "message": str(e)}
 
 @gis_mcp.tool()
-def sjoin_gpd(left_path: str, right_path: str, how: str = "inner", predicate: str = "intersects", output_path: str = None) -> Dict[str, Any]:
+def sjoin_gpd(left_path: str, right_path: str, how: str = "inner", predicate: str = "intersects", output_path: str = None, max_features: int = 5, offset: int = 0, columns: Optional[str] = None, include_geometry: bool = True, precision: Optional[int] = None) -> Dict[str, Any]:
     """
     Spatial join between two GeoDataFrames using geopandas.sjoin.
     Args:
@@ -348,8 +396,8 @@ def sjoin_gpd(left_path: str, right_path: str, how: str = "inner", predicate: st
         Dictionary with status, message, and output info.
     """
     try:
-        left = gpd.read_file(left_path)
-        right = gpd.read_file(right_path)
+        left = read_vector(left_path)
+        right = read_vector(right_path)
         if left.crs != right.crs:
             right = right.to_crs(left.crs)
         result = gpd.sjoin(left, right, how=how, predicate=predicate)
@@ -358,11 +406,15 @@ def sjoin_gpd(left_path: str, right_path: str, how: str = "inner", predicate: st
             output_path_resolved.parent.mkdir(parents=True, exist_ok=True)
             result.to_file(str(output_path_resolved))
             output_path = str(output_path_resolved)
-        # Convert geometry to WKT for serialization
-        preview_df = result.head(5).copy()
-        if 'geometry' in preview_df.columns:
-            preview_df['geometry'] = preview_df['geometry'].apply(lambda g: g.wkt if g is not None else None)
-        preview = preview_df.to_dict(orient="records")
+        page = vector_preview(
+            result,
+            max_features=max_features,
+            offset=offset,
+            columns=columns,
+            include_geometry=include_geometry,
+            precision=precision,
+        )
+        preview = page["preview"]
         return {
             "status": "success",
             "message": f"Spatial join ({how}, {predicate}) completed successfully.",
@@ -370,6 +422,9 @@ def sjoin_gpd(left_path: str, right_path: str, how: str = "inner", predicate: st
             "crs": str(result.crs),
             "columns": list(result.columns),
             "preview": preview,
+            "returned": page["returned"],
+            "offset": page["offset"],
+            "truncated": page["truncated"],
             "output_path": output_path,
         }
     except Exception as e:
@@ -377,7 +432,7 @@ def sjoin_gpd(left_path: str, right_path: str, how: str = "inner", predicate: st
         return {"status": "error", "message": str(e)}
 
 @gis_mcp.tool()
-def sjoin_nearest_gpd(left_path: str, right_path: str, how: str = "left", max_distance: float = None, output_path: str = None) -> Dict[str, Any]:
+def sjoin_nearest_gpd(left_path: str, right_path: str, how: str = "left", max_distance: float = None, output_path: str = None, max_features: int = 5, offset: int = 0, columns: Optional[str] = None, include_geometry: bool = True, precision: Optional[int] = None) -> Dict[str, Any]:
     """
     Nearest neighbor spatial join using geopandas.sjoin_nearest.
     Args:
@@ -390,8 +445,8 @@ def sjoin_nearest_gpd(left_path: str, right_path: str, how: str = "left", max_di
         Dictionary with status, message, and output info.
     """
     try:
-        left = gpd.read_file(left_path)
-        right = gpd.read_file(right_path)
+        left = read_vector(left_path)
+        right = read_vector(right_path)
         if left.crs != right.crs:
             right = right.to_crs(left.crs)
         kwargs = {"how": how}
@@ -403,11 +458,15 @@ def sjoin_nearest_gpd(left_path: str, right_path: str, how: str = "left", max_di
             output_path_resolved.parent.mkdir(parents=True, exist_ok=True)
             result.to_file(str(output_path_resolved))
             output_path = str(output_path_resolved)
-        # Convert geometry to WKT for serialization
-        preview_df = result.head(5).copy()
-        if 'geometry' in preview_df.columns:
-            preview_df['geometry'] = preview_df['geometry'].apply(lambda g: g.wkt if g is not None else None)
-        preview = preview_df.to_dict(orient="records")
+        page = vector_preview(
+            result,
+            max_features=max_features,
+            offset=offset,
+            columns=columns,
+            include_geometry=include_geometry,
+            precision=precision,
+        )
+        preview = page["preview"]
         return {
             "status": "success",
             "message": f"Nearest spatial join ({how}) completed successfully.",
@@ -415,6 +474,9 @@ def sjoin_nearest_gpd(left_path: str, right_path: str, how: str = "left", max_di
             "crs": str(result.crs),
             "columns": list(result.columns),
             "preview": preview,
+            "returned": page["returned"],
+            "offset": page["offset"],
+            "truncated": page["truncated"],
             "output_path": output_path,
         }
     except Exception as e:
@@ -422,7 +484,7 @@ def sjoin_nearest_gpd(left_path: str, right_path: str, how: str = "left", max_di
         return {"status": "error", "message": str(e)}
 
 @gis_mcp.tool()
-def point_in_polygon(points_path: str, polygons_path: str, output_path: str = None) -> Dict[str, Any]:
+def point_in_polygon(points_path: str, polygons_path: str, output_path: str = None, max_features: int = 5, offset: int = 0, columns: Optional[str] = None, include_geometry: bool = True, precision: Optional[int] = None) -> Dict[str, Any]:
     """
     Check if points are inside polygons using spatial join (predicate='within').
     Args:
@@ -433,8 +495,8 @@ def point_in_polygon(points_path: str, polygons_path: str, output_path: str = No
         Dictionary with status, message, and output info.
     """
     try:
-        points = gpd.read_file(points_path)
-        polygons = gpd.read_file(polygons_path)
+        points = read_vector(points_path)
+        polygons = read_vector(polygons_path)
         if points.crs != polygons.crs:
             polygons = polygons.to_crs(points.crs)
         result = gpd.sjoin(points, polygons, how="left", predicate="within")
@@ -443,11 +505,15 @@ def point_in_polygon(points_path: str, polygons_path: str, output_path: str = No
             output_path_resolved.parent.mkdir(parents=True, exist_ok=True)
             result.to_file(str(output_path_resolved))
             output_path = str(output_path_resolved)
-        # Convert geometry to WKT for serialization
-        preview_df = result.head(5).copy()
-        if 'geometry' in preview_df.columns:
-            preview_df['geometry'] = preview_df['geometry'].apply(lambda g: g.wkt if g is not None else None)
-        preview = preview_df.to_dict(orient="records")
+        page = vector_preview(
+            result,
+            max_features=max_features,
+            offset=offset,
+            columns=columns,
+            include_geometry=include_geometry,
+            precision=precision,
+        )
+        preview = page["preview"]
         return {
             "status": "success",
             "message": "Point-in-polygon test completed successfully.",
@@ -455,6 +521,9 @@ def point_in_polygon(points_path: str, polygons_path: str, output_path: str = No
             "crs": str(result.crs),
             "columns": list(result.columns),
             "preview": preview,
+            "returned": page["returned"],
+            "offset": page["offset"],
+            "truncated": page["truncated"],
             "output_path": output_path,
         }
     except Exception as e:
@@ -473,7 +542,7 @@ def write_file_gpd(gdf_path: str, output_path: str, driver: str = None) -> Dict[
         Dictionary with status and message.
     """
     try:
-        gdf = gpd.read_file(gdf_path)
+        gdf = read_vector(gdf_path)
         output_path_resolved = resolve_path(output_path, relative_to_storage=True)
         output_path_resolved.parent.mkdir(parents=True, exist_ok=True)
         kwargs = {"driver": driver} if driver else {}
