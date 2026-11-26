@@ -1,0 +1,7 @@
+# GIS MCP — https://gis-mcp.com
+# Allow search engines and AI crawlers to fetch documentation.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://gis-mcp.com/sitemap.xml
