@@ -41,7 +41,7 @@ It enables AI agents to perform geospatial analysis, spatial data processing, ve
   <br/>
 </div>
 
-> Current version is 0.15.0 (Beta):
+> Current version is 0.16.0 (Beta):
 >
 > We welcome contributions and developers to join us in building this project.
 

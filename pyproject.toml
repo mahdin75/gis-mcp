@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gis-mcp"
-version = "0.15.0"
+version = "0.16.0"
 description = "A Model Context Protocol (MCP) server implementation for GIS operations using GIS libraries"
 readme = "README.md"
 requires-python = ">=3.10"
